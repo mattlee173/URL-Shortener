@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain + application logic. Deliberately has no package or framework dependencies
+       so business rules can be unit tested in isolation from ASP.NET and storage. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="UrlShortener.UnitTests" />
+  </ItemGroup>
+</Project>

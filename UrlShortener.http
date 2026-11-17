@@ -1,0 +1,48 @@
+# Requests for the VS Code "REST Client" extension (humao.rest-client) or the
+# Visual Studio / Rider HTTP client. Start the API first: dotnet run --project src/UrlShortener.Api
+
+@baseUrl = http://localhost:5260
+@adminKey = dev-only-admin-key-change-me
+
+### Health
+GET {{baseUrl}}/health
+
+### Create a short link with a generated code
+# @name create
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "https://learn.microsoft.com/dotnet/"
+}
+
+### Follow it (REST Client shows the 302 and Location header)
+# @no-redirect
+GET {{baseUrl}}/{{create.response.body.code}}
+
+### Read metadata
+GET {{baseUrl}}/api/links/{{create.response.body.code}}
+
+### Create with a custom alias
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "https://github.com/dotnet/aspnetcore",
+  "customAlias": "aspnetcore"
+}
+
+### Invalid: javascript: URL -> 400
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "javascript:alert(1)"
+}
+
+### Delete without key -> 401
+DELETE {{baseUrl}}/api/links/aspnetcore
+
+### Delete with key -> 204 (then following the link returns 410)
+DELETE {{baseUrl}}/api/links/aspnetcore
+X-Api-Key: {{adminKey}}

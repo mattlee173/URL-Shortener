@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>url-shortener-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UrlShortener.Core\UrlShortener.Core.csproj" />
+    <ProjectReference Include="..\UrlShortener.Infrastructure\UrlShortener.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="UrlShortener.IntegrationTests" />
+  </ItemGroup>
+</Project>
