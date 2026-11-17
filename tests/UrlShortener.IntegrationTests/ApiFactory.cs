@@ -22,6 +22,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Security:AdminApiKey", AdminKey);
         builder.UseSetting("Analytics:VisitorHashKey", "integration-test-visitor-key");
         builder.UseSetting("Analytics:FlushIntervalMilliseconds", "0");
+
+        // Tests create many links from one client; rate limiting has its own dedicated tests.
+        builder.UseSetting("RateLimiting:CreatePermitsPerMinute", "100000");
+        builder.UseSetting("RateLimiting:RedirectPermitsPerMinute", "100000");
     }
 
     /// <summary>Client that does not follow redirects, so tests can assert on the 302 itself.</summary>

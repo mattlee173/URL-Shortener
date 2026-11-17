@@ -14,7 +14,12 @@ public sealed record ShortLink
 
     public required DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>When the link stops redirecting. <c>null</c> means it never expires.</summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
+
     public DateTimeOffset? DeletedAt { get; init; }
 
     public bool IsDeleted => DeletedAt is not null;
+
+    public bool IsExpiredAt(DateTimeOffset now) => ExpiresAt is { } expiry && now >= expiry;
 }

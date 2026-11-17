@@ -50,3 +50,28 @@ DELETE {{baseUrl}}/api/links/aspnetcore
 ### Delete with key -> 204 (then following the link returns 410)
 DELETE {{baseUrl}}/api/links/aspnetcore
 X-Api-Key: {{adminKey}}
+
+### Create a link that expires (returns 410 Gone afterwards)
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "https://example.com/flash-sale",
+  "expiresAt": "2030-01-01T00:00:00Z"
+}
+
+### Unsafe destination: cloud metadata address -> 400 url_host_not_allowed
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "http://169.254.169.254/latest/meta-data/"
+}
+
+### Embedded credentials -> 400 url_credentials_not_allowed
+POST {{baseUrl}}/api/links
+Content-Type: application/json
+
+{
+  "url": "https://user:password@example.com/"
+}

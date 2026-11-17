@@ -28,13 +28,14 @@ public sealed class SqliteShortLinkRepository : IShortLinkRepository
         // ON CONFLICT DO NOTHING makes "claim this code" a single atomic statement:
         // the primary key, not application code, arbitrates concurrent inserts.
         command.CommandText = """
-            INSERT INTO short_links (code, target_url, created_at_ms, deleted_at_ms)
-            VALUES ($code, $targetUrl, $createdAt, NULL)
+            INSERT INTO short_links (code, target_url, created_at_ms, expires_at_ms, deleted_at_ms)
+            VALUES ($code, $targetUrl, $createdAt, $expiresAt, NULL)
             ON CONFLICT (code) DO NOTHING;
             """;
         command.Parameters.AddWithValue("$code", link.Code);
         command.Parameters.AddWithValue("$targetUrl", link.TargetUrl);
         command.Parameters.AddWithValue("$createdAt", link.CreatedAt.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$expiresAt", (object?)link.ExpiresAt?.ToUnixTimeMilliseconds() ?? DBNull.Value);
 
         var inserted = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return inserted == 1;
@@ -45,7 +46,7 @@ public sealed class SqliteShortLinkRepository : IShortLinkRepository
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT code, target_url, created_at_ms, deleted_at_ms
+            SELECT code, target_url, created_at_ms, deleted_at_ms, expires_at_ms
             FROM short_links
             WHERE code = $code;
             """;
@@ -62,7 +63,8 @@ public sealed class SqliteShortLinkRepository : IShortLinkRepository
             Code = reader.GetString(0),
             TargetUrl = reader.GetString(1),
             CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)),
-            DeletedAt = reader.IsDBNull(3) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(3)),
+            DeletedAt = ReadTimestamp(reader, 3),
+            ExpiresAt = ReadTimestamp(reader, 4),
         };
     }
 
@@ -80,4 +82,7 @@ public sealed class SqliteShortLinkRepository : IShortLinkRepository
 
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
+
+    private static DateTimeOffset? ReadTimestamp(SqliteDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(ordinal));
 }

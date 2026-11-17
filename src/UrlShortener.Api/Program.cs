@@ -17,6 +17,7 @@ builder.Services.AddOptions<ShortenerOptions>()
     .Validate(o => Uri.TryCreate(o.BaseUrl, UriKind.Absolute, out _), "Shortener:BaseUrl must be an absolute URL.")
     .Validate(o => o.CodeLength is >= 4 and <= 32, "Shortener:CodeLength must be 4-32.")
     .Validate(o => o.MaxGenerationAttempts >= 1, "Shortener:MaxGenerationAttempts must be >= 1.")
+    .Validate(o => o.MaxExpiryDays >= 1, "Shortener:MaxExpiryDays must be >= 1.")
     .ValidateOnStart();
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ShortenerOptions>>().Value);
 builder.Services.AddOptions<AnalyticsOptions>()
@@ -41,6 +42,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddHealthChecks();
+builder.Services.AddUrlShortenerRateLimiting(builder.Configuration);
+
+// Requests are tiny JSON documents; cap bodies well below Kestrel's 30 MB default to blunt
+// memory-exhaustion attempts.
+builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = 16 * 1024);
 
 var app = builder.Build();
 
@@ -48,6 +54,7 @@ await app.Services.GetRequiredService<IStorageInitializer>().InitializeAsync(Can
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseRateLimiter();
 
 app.MapHealthChecks("/health");
 app.MapLinkEndpoints();

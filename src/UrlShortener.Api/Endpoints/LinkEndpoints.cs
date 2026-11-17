@@ -15,6 +15,7 @@ internal static class LinkEndpoints
         var api = app.MapGroup("/api/links").WithTags("Links");
 
         api.MapPost("/", CreateAsync)
+            .RequireRateLimiting(RateLimitingSetup.CreatePolicy)
             .WithName("CreateLink")
             .WithSummary("Create a short link, optionally with a custom alias.");
 
@@ -33,6 +34,7 @@ internal static class LinkEndpoints
             .AddEndpointFilter<ApiKeyEndpointFilter>();
 
         app.MapGet("/{code}", RedirectAsync)
+            .RequireRateLimiting(RateLimitingSetup.RedirectPolicy)
             .WithName("FollowLink")
             .WithTags("Redirect")
             .WithSummary("Redirect to the link's destination.");
@@ -43,7 +45,7 @@ internal static class LinkEndpoints
     private static async Task<IResult> CreateAsync(
         CreateLinkRequest request, ShortLinkService service, ShortenerOptions options, CancellationToken ct)
     {
-        var result = await service.CreateAsync(new CreateShortLinkCommand(request.Url, request.CustomAlias), ct);
+        var result = await service.CreateAsync(new CreateShortLinkCommand(request.Url, request.CustomAlias, request.ExpiresAt), ct);
         if (!result.IsSuccess)
         {
             return result.Error!.ToProblem();
@@ -104,5 +106,6 @@ internal static class LinkEndpoints
         $"{options.BaseUrl.TrimEnd('/')}/{link.Code}",
         link.TargetUrl,
         link.CreatedAt,
+        link.ExpiresAt,
         link.IsDeleted);
 }

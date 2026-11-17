@@ -18,4 +18,10 @@ public sealed class ShortenerOptions
     public int MaxGenerationAttempts { get; set; } = 5;
 
     public int MaxUrlLength { get; set; } = 2048;
+
+    /// <summary>Furthest in the future a caller may set <c>expiresAt</c>.</summary>
+    public int MaxExpiryDays { get; set; } = 365;
+
+    /// <summary>Domains that may not be shortened (matches the host and all of its subdomains).</summary>
+    public IReadOnlyList<string> BlockedHosts { get; set; } = [];
 }

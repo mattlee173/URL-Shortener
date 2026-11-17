@@ -17,12 +17,26 @@ public abstract class ShortLinkRepositoryContractTests
     [Fact]
     public async Task TryAdd_ThenGet_RoundTripsAllFields()
     {
-        var link = new ShortLink { Code = "Round01", TargetUrl = "https://example.com/?q=ü", CreatedAt = Now };
+        var link = new ShortLink
+        {
+            Code = "Round01",
+            TargetUrl = "https://example.com/?q=%C3%BC",
+            CreatedAt = Now,
+            ExpiresAt = Now.AddDays(7),
+        };
 
         Assert.True(await Repository.TryAddAsync(link, default));
         var loaded = await Repository.GetAsync("Round01", default);
 
         Assert.Equal(link, loaded);
+    }
+
+    [Fact]
+    public async Task TryAdd_WithoutExpiry_RoundTripsNull()
+    {
+        await Repository.TryAddAsync(Link("NoExp01"), default);
+
+        Assert.Null((await Repository.GetAsync("NoExp01", default))!.ExpiresAt);
     }
 
     [Fact]
