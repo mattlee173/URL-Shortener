@@ -23,6 +23,10 @@ GET {{baseUrl}}/{{create.response.body.code}}
 ### Read metadata
 GET {{baseUrl}}/api/links/{{create.response.body.code}}
 
+### Click analytics (admin). Clicks are flushed in the background, ~1s delay.
+GET {{baseUrl}}/api/links/{{create.response.body.code}}/stats
+X-Api-Key: {{adminKey}}
+
 ### Create with a custom alias
 POST {{baseUrl}}/api/links
 Content-Type: application/json

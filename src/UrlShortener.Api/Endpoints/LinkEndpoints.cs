@@ -1,6 +1,7 @@
 using UrlShortener.Api.Contracts;
 using UrlShortener.Api.Security;
 using UrlShortener.Core;
+using UrlShortener.Core.Analytics;
 using UrlShortener.Core.Domain;
 using UrlShortener.Core.Services;
 using UrlShortener.Core.Validation;
@@ -24,6 +25,11 @@ internal static class LinkEndpoints
         api.MapDelete("/{code}", DeleteAsync)
             .WithName("DeleteLink")
             .WithSummary("Soft-delete a short link (requires X-Api-Key). The code is never reissued.")
+            .AddEndpointFilter<ApiKeyEndpointFilter>();
+
+        api.MapGet("/{code}/stats", GetStatsAsync)
+            .WithName("GetLinkStats")
+            .WithSummary("Click analytics for a link (requires X-Api-Key).")
             .AddEndpointFilter<ApiKeyEndpointFilter>();
 
         app.MapGet("/{code}", RedirectAsync)
@@ -60,8 +66,14 @@ internal static class LinkEndpoints
         return result.IsSuccess ? TypedResults.NoContent() : result.Error!.ToProblem();
     }
 
+    private static async Task<IResult> GetStatsAsync(string code, LinkAnalyticsService analytics, CancellationToken ct)
+    {
+        var result = await analytics.GetStatsAsync(code, ct);
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : result.Error!.ToProblem();
+    }
+
     private static async Task<IResult> RedirectAsync(
-        string code, ShortLinkService service, HttpContext http, CancellationToken ct)
+        string code, ShortLinkService service, LinkAnalyticsService analytics, HttpContext http, CancellationToken ct)
     {
         if (!AliasValidator.IsWellFormedCode(code))
         {
@@ -73,6 +85,13 @@ internal static class LinkEndpoints
         {
             return result.Error!.ToProblem();
         }
+
+        // Best-effort and non-blocking: an analytics backlog or outage never delays or fails a redirect.
+        analytics.RecordClick(
+            result.Value.Code,
+            http.Connection.RemoteIpAddress,
+            http.Request.Headers.UserAgent.ToString(),
+            http.Request.Headers.Referer.ToString());
 
         // 302 rather than 301: browsers cache 301s indefinitely, which would make deletion
         // ineffective for anyone who has already followed the link.

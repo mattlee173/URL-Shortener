@@ -28,6 +28,20 @@ public sealed class SqliteSchemaInitializer : IStorageInitializer
                 created_at_ms  INTEGER NOT NULL,
                 deleted_at_ms  INTEGER NULL
             );
+
+            -- Analytics (Scenario 2). Append-only; no FK so click inserts never contend with
+            -- link writes, and links are never hard-deleted anyway.
+            CREATE TABLE IF NOT EXISTS click_events (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                code            TEXT    NOT NULL,
+                occurred_at_ms  INTEGER NOT NULL,
+                referrer_host   TEXT    NULL,
+                client_kind     INTEGER NOT NULL,
+                visitor_hash    TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_click_events_code_time
+                ON click_events (code, occurred_at_ms);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

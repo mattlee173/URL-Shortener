@@ -20,11 +20,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Storage:ConnectionString", $"Data Source={_dbPath};Pooling=False");
         builder.UseSetting("Shortener:BaseUrl", "https://sho.rt");
         builder.UseSetting("Security:AdminApiKey", AdminKey);
+        builder.UseSetting("Analytics:VisitorHashKey", "integration-test-visitor-key");
+        builder.UseSetting("Analytics:FlushIntervalMilliseconds", "0");
     }
 
     /// <summary>Client that does not follow redirects, so tests can assert on the 302 itself.</summary>
     public HttpClient CreateNonRedirectingClient() =>
         CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    /// <summary>Client that sends the admin API key on every request.</summary>
+    public HttpClient CreateAdminClient()
+    {
+        var client = CreateNonRedirectingClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AdminKey);
+        return client;
+    }
 
     protected override void Dispose(bool disposing)
     {

@@ -5,8 +5,9 @@
     <IsTestProject>true</IsTestProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- CA1707: underscores are idiomatic in test names (Method_Condition_Expected).
-         CA2007: ConfigureAwait is irrelevant in test code (no sync context to capture). -->
-    <NoWarn>$(NoWarn);CA1707;CA2007</NoWarn>
+         CA2007: ConfigureAwait is irrelevant in test code (no sync context to capture).
+         CA1861: inline expected-value arrays read better than static fields in tests. -->
+    <NoWarn>$(NoWarn);CA1707;CA2007;CA1861</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

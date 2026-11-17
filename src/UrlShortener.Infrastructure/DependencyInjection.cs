@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using UrlShortener.Core.Abstractions;
+using UrlShortener.Core.Analytics;
+using UrlShortener.Infrastructure.Analytics;
 using UrlShortener.Infrastructure.Caching;
 using UrlShortener.Infrastructure.Persistence;
 
@@ -54,7 +56,24 @@ public static class DependencyInjection
                 : store;
         });
 
+        AddAnalytics(services);
+
         return services;
+    }
+
+    private static void AddAnalytics(IServiceCollection services)
+    {
+        services.AddSingleton<SqliteClickRepository>();
+        services.AddSingleton<InMemoryClickRepository>();
+        services.AddSingleton<IClickRepository>(sp => Options(sp).Provider switch
+        {
+            StorageProvider.Sqlite => sp.GetRequiredService<SqliteClickRepository>(),
+            _ => sp.GetRequiredService<InMemoryClickRepository>(),
+        });
+
+        services.AddSingleton(sp => new ChannelClickRecorder(sp.GetRequiredService<AnalyticsOptions>()));
+        services.AddSingleton<IClickRecorder>(sp => sp.GetRequiredService<ChannelClickRecorder>());
+        services.AddHostedService<ClickFlushService>();
     }
 
     private static StorageOptions Options(IServiceProvider sp) => sp.GetRequiredService<IOptions<StorageOptions>>().Value;
