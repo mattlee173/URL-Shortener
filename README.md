@@ -19,6 +19,18 @@ validation. A review-driven hardening iteration followed (one commit per finding
 | [docs/RISKS.md](docs/RISKS.md) | Failure modes, security review, trade-offs, limitations |
 | [docs/AI_USAGE_LOG.md](docs/AI_USAGE_LOG.md) | AI traceability: generated / edited / rejected, sign-off checklist |
 
+### AI-assisted development
+
+As the assignment requires, this project was built by **Matthew Lee** with **Claude (Anthropic)** as an
+AI pair programmer. I framed each task (intent, constraints, acceptance criteria, technical context),
+reviewed and ran every output on my own machine, decided what was accepted, edited or rejected, and
+approved each commit. Claude assisted with implementation, debugging, test generation, code review
+and documentation, and each AI-assisted commit carries a `Co-Authored-By: Claude` trailer.
+
+The full record of what was generated, edited, rejected or found defective (with the reason for
+each), the quality gates every output passed, and the high-impact changes that required my sign-off
+is in [docs/AI_USAGE_LOG.md](docs/AI_USAGE_LOG.md).
+
 ---
 
 ## Quick start

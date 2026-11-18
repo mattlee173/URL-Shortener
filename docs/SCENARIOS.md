@@ -5,9 +5,9 @@ change to existing code rather than a separate toy:
 
 ```
 git log --oneline
-16f96c8 Scenario 3 (ambiguous): link expiry and abuse protection
-9961f7c Scenario 2 (brownfield): click analytics on the existing redirect path
-d1e033f Scenario 1 (greenfield): core URL shortener
+f2a1d94 Scenario 3 (ambiguous): link expiry and abuse protection
+e9293e5 Scenario 2 (brownfield): click analytics on the existing redirect path
+2886e07 Scenario 1 (greenfield): core URL shortener
 ```
 
 `git show <sha> --stat` gives the exact footprint of each.
