@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Domain;
 using UrlShortener.Infrastructure.Observability;

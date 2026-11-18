@@ -1,4 +1,5 @@
 using Microsoft.OpenApi;
+
 using UrlShortener.Api.Security;
 
 namespace UrlShortener.Api.Configuration;

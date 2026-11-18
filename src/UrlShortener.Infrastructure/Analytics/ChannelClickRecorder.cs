@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Observability;

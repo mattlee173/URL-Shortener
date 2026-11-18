@@ -21,6 +21,9 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Code style (.editorconfig)
+        run: dotnet format --verify-no-changes --no-restore
+
       - name: Build (warnings as errors via Directory.Build.props)
         run: dotnet build --no-restore -c Release
 

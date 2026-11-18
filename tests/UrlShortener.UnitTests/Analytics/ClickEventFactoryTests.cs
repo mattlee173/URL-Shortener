@@ -1,4 +1,5 @@
 using System.Net;
+
 using UrlShortener.Core.Analytics;
 
 namespace UrlShortener.UnitTests.Analytics;

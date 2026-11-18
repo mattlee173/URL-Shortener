@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Observability;

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+
 using UrlShortener.Core.Domain;
 
 namespace UrlShortener.Core.Validation;

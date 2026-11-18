@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+
 using UrlShortener.Api.Contracts;
 using UrlShortener.Core.Analytics;
 

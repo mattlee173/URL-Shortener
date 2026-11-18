@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Analytics;

@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+
 using UrlShortener.Infrastructure.Observability;
 
 namespace UrlShortener.UnitTests.TestDoubles;

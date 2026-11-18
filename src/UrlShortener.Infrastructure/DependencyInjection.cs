@@ -2,6 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Analytics;

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+
 using UrlShortener.Api.Configuration;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Errors;

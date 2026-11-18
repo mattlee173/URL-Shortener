@@ -1,5 +1,6 @@
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+
 using UrlShortener.Infrastructure.Observability;
 
 namespace UrlShortener.Api.Configuration;

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+
 using UrlShortener.Core.Abstractions;
 
 namespace UrlShortener.Core.Services;
