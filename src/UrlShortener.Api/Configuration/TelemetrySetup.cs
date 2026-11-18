@@ -24,7 +24,7 @@ internal static class TelemetrySetup
     ];
 
     /// <remarks>
-    /// Reads configuration at registration, unlike the options classes (see CLAUDE.md). This is a
+    /// Reads configuration at registration, unlike the options classes, which are read lazily. This is a
     /// deliberate exception: whether an exporter exists is a deployment switch set through the
     /// standard OpenTelemetry environment variable, not behaviour tests override; the
     /// OpenTelemetry/.NET Aspire templates use the same pattern. Exporter settings (endpoint,

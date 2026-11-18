@@ -486,3 +486,7 @@ $RECYCLE.BIN/
 *.db
 *.db-wal
 *.db-shm
+
+# Local AI assistant context and settings (not part of the project)
+.claude/
+CLAUDE.md

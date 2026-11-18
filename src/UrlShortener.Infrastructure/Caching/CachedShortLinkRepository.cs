@@ -14,7 +14,7 @@ namespace UrlShortener.Infrastructure.Caching;
 /// </summary>
 /// <remarks>
 /// The cache is per process. With several instances, a deleted link can keep redirecting on
-/// other instances for up to <see cref="StorageOptions.CacheTtlSeconds"/>. See docs/RISKS.md.
+/// other instances for up to <see cref="StorageOptions.CacheTtlSeconds"/>. See README, "Trade-offs".
 /// </remarks>
 public sealed class CachedShortLinkRepository : IShortLinkRepository
 {

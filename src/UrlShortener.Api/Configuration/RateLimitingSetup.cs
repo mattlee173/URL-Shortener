@@ -32,7 +32,7 @@ public sealed class RateLimitingOptions
 /// </summary>
 /// <remarks>
 /// Partitioning uses the connection's remote IP. Behind a reverse proxy that is the proxy's IP, so
-/// ForwardedHeaders must be configured with trusted proxies before deploying (see docs/RISKS.md).
+/// ForwardedHeaders must be configured with trusted proxies before deploying (see README, "Limitations").
 /// State is in-process: with N instances the effective limit is N× the configured value.
 /// </remarks>
 internal static class RateLimitingSetup

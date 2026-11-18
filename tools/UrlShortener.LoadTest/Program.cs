@@ -7,7 +7,7 @@ using System.Net.Http.Json;
 // runs N concurrent workers for a fixed duration and reports throughput and latency percentiles.
 // The exit code is non-zero if the p99 budget is exceeded or any redirect fails, so it can gate a pipeline.
 //
-// Usage (start the API with rate limiting off first, see docs/TESTING.md):
+// Usage (start the API with rate limiting off first, see README, "Testing approach"):
 //   dotnet run -c Release --project tools/UrlShortener.LoadTest -- --base-url http://localhost:5260
 //
 // Options: --base-url, --links (200), --concurrency (32), --duration (20 s), --warmup (3 s), --p99-ms (10)
