@@ -43,6 +43,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddHealthChecks();
 builder.Services.AddUrlShortenerRateLimiting(builder.Configuration);
+builder.Services.AddForwardedHeadersSupport(builder.Configuration);
 
 // Requests are tiny JSON documents; cap bodies well below Kestrel's 30 MB default to blunt
 // memory-exhaustion attempts.
@@ -52,6 +53,7 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<IStorageInitializer>().InitializeAsync(CancellationToken.None);
 
+app.UseForwardedHeadersSupport();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseRateLimiter();

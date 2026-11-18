@@ -16,6 +16,7 @@
 | DB from a newer build | Process refuses to start | Migration runner version check |
 | Malformed or oversized request | 400 / 413, never 500 | `BadRequestExceptionHandler`, Kestrel body cap |
 | Scripted creation/scanning | 429 with `Retry-After` | Per-IP rate limiting |
+| `ForwardedHeaders:Enabled` with no trusted proxy listed | Process refuses to start | Options validation (no "trust everyone" mode) |
 
 ## 2. Security review summary
 
@@ -58,14 +59,14 @@
 - Anonymous creation is acceptable, with abuse controlled by rate limits and destination rules.
 - One admin role is sufficient for delete and stats (no per-user ownership yet).
 - UTC is the analytics day boundary.
-- The service runs directly on Kestrel or behind a proxy that is configured explicitly (see below).
+- The service runs directly on Kestrel, or behind a proxy whose addresses are listed in `ForwardedHeaders`.
 
 ## 5. Known limitations / next steps
 
-1. **Reverse proxies:** rate limiting and visitor hashing use `RemoteIpAddress`. Behind a load
-   balancer, configure `ForwardedHeadersOptions` with **trusted** `KnownProxies`/`KnownNetworks`
-   before deploying. Otherwise all clients share one bucket (or, if headers are trusted blindly,
-   clients can spoof their IP).
+1. ~~**Reverse proxies.**~~ **Done (2026-11-17).** The `ForwardedHeaders` section (off by default)
+   trusts `X-Forwarded-For` only from the listed `KnownProxies`/`KnownNetworks`, and startup fails if
+   it is enabled with no proxies listed. **Before deploying behind a load balancer, set these to the
+   balancer's addresses.** Otherwise every client shares the balancer's rate-limit bucket.
 2. **No user accounts or link ownership**, so stats and delete are admin-only.
 3. **No OpenAPI document is generated** yet. `UrlShortener.http` and the endpoint summaries
    (`WithSummary`) document the API. Adding `Microsoft.AspNetCore.OpenApi` + `MapOpenApi()` is a
