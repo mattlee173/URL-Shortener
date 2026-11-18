@@ -80,3 +80,8 @@
 6. ~~**Admin brute-force throttling.**~~ **Done (2026-11-17).** See §2.
 7. **Unicode lookalike (homograph) domains** are stored as punycode, which makes them visible in the
    API, but they are not flagged.
+8. **Analytics throughput ceiling.** Measured at ~32 k clicks/s into SQLite on the engineer's machine
+   (TESTING.md). Above it, clicks are dropped and counted. For more, use a server database or a
+   durable queue.
+9. **Visitor-hash key rotation** is manual. Rotating it resets unique-visitor continuity, which is by
+   design.

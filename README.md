@@ -6,7 +6,8 @@ protection, and unit + integration test suites.
 
 It was built as three sequential scenarios on one codebase (**greenfield → brownfield → ambiguous**),
 each a separate commit, to show requirement analysis, task decomposition, AI-assisted execution and
-validation.
+validation. A review-driven hardening iteration followed (one commit per finding; see
+[SCENARIOS.md](docs/SCENARIOS.md#iteration-4-review-driven-hardening-brownfield)).
 
 | Start here | |
 |---|---|
@@ -32,12 +33,13 @@ validation.
 ```bash
 dotnet restore
 dotnet build            # warnings are errors
-dotnet test             # unit + integration
+dotnet test             # 170 unit + 36 integration
 dotnet run --project src/UrlShortener.Api
 ```
 
 The API listens on **http://localhost:5260** and creates `urlshortener.db` (SQLite) in the API
-project's folder on first run. Schema migrations apply automatically.
+project's folder on first run. Schema migrations apply automatically. The OpenAPI 3.1 description
+is at **http://localhost:5260/openapi/v1.json** (committed copy: [docs/openapi.v1.json](docs/openapi.v1.json)).
 
 ### Try it
 
@@ -65,11 +67,12 @@ All errors are RFC 9457 `application/problem+json`. Domain errors carry a stable
 | Method | Route | Auth | Success | Errors |
 |---|---|---|---|---|
 | `POST` | `/api/links` body `{ url, customAlias?, expiresAt? }` | none (rate-limited) | `201` + `Location` | `400` validation, `409 alias_taken`, `413`, `429`, `503` |
-| `GET` | `/api/links/{code}` | none | `200` link metadata | `404` |
-| `GET` | `/api/links/{code}/stats` | `X-Api-Key` | `200` totals, uniques, by day, top referrers, by device | `401`, `403`, `404` |
-| `DELETE` | `/api/links/{code}` | `X-Api-Key` | `204` (soft delete; code never reissued) | `401`, `403`, `404` |
+| `GET` | `/api/links/{code}` | none (shares the redirect rate limit) | `200` link metadata | `404`, `410 link_deleted` (target withheld), `429` |
+| `GET` | `/api/links/{code}/stats` | `X-Api-Key` (admin rate limit) | `200` totals, uniques, by day, top referrers, by device | `401`, `403`, `404`, `429` |
+| `DELETE` | `/api/links/{code}` | `X-Api-Key` (admin rate limit) | `204` (soft delete; code never reissued) | `401`, `403`, `404`, `429` |
 | `GET` | `/{code}` | none (rate-limited) | `302` to target | `404`, `410 link_deleted` / `link_expired`, `429` |
 | `GET` | `/health` | none | `200 Healthy` | |
+| `GET` | `/openapi/v1.json` | none | `200` OpenAPI 3.1 document | |
 
 **Validation error codes:** `url_required`, `url_invalid`, `url_too_long`, `url_scheme_not_allowed`,
 `url_credentials_not_allowed`, `url_host_not_allowed`, `url_self_reference`, `url_host_blocked`,
@@ -92,8 +95,11 @@ Set in `appsettings*.json`, environment variables (`Section__Key`), or user-secr
 | `Storage:CacheTtlSeconds` | `60` | `0` disables the redirect cache |
 | `Analytics:VisitorHashKey` | _(required)_ | **Secret.** Keys the visitor hash |
 | `Analytics:BufferCapacity` / `BatchSize` / `FlushIntervalMilliseconds` | `10000` / `500` / `1000` | Click pipeline tuning |
-| `RateLimiting:CreatePermitsPerMinute` / `RedirectPermitsPerMinute` | `20` / `300` | Per client IP |
-| `Security:AdminApiKey` | _(none)_ | **Secret.** If unset, delete/stats return 403 (fail closed) |
+| `Analytics:RetentionDays` / `RetentionSweepIntervalMinutes` | `395` / `360` | Clicks older than this are purged; `0` keeps them forever |
+| `RateLimiting:CreatePermitsPerMinute` / `RedirectPermitsPerMinute` / `AdminPermitsPerMinute` | `20` / `300` / `30` | Per client IP. The redirect budget also covers metadata lookups |
+| `ForwardedHeaders:Enabled` / `KnownProxies` / `KnownNetworks` | `false` / `[]` / `[]` | Enable behind a load balancer **and list its addresses**; startup fails if enabled with none |
+| `Security:AdminApiKey` | _(none)_ | **Secret.** If unset, delete/stats return 403 (fail closed). Use ≥ 32 random bytes |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | Standard OpenTelemetry variable; when set, metrics are exported over OTLP |
 
 Development placeholders for both secrets are in `appsettings.Development.json`. For any other
 environment:
@@ -106,6 +112,13 @@ dotnet user-secrets set "Analytics:VisitorHashKey" "<random>"
 
 The app refuses to start if required settings are missing or invalid.
 
+### Observability
+
+Metrics are published on the `UrlShortener` meter (cache hits/misses, clicks dropped, persisted,
+failed and purged, buffer depth), next to ASP.NET Core's built-in `http.server.request.duration`.
+Watch them locally with `dotnet-counters monitor -n UrlShortener.Api --counters UrlShortener`, or set
+`OTEL_EXPORTER_OTLP_ENDPOINT` to export them to a collector.
+
 ---
 
 ## Project layout
@@ -117,8 +130,10 @@ src/
   UrlShortener.Api/             Minimal API endpoints, auth filter, rate limiting, error mapping
 tests/
   UrlShortener.UnitTests/         Rules, services, contract suites (in-memory + SQLite)
-  UrlShortener.IntegrationTests/  Full HTTP pipeline via WebApplicationFactory
-docs/                           Requirements, architecture, scenarios, testing, risks, AI log
+  UrlShortener.IntegrationTests/  Full HTTP pipeline via WebApplicationFactory, OpenAPI contract snapshot
+tools/
+  UrlShortener.LoadTest/        Redirect load generator (see docs/TESTING.md)
+docs/                           Requirements, architecture, scenarios, testing, risks, AI log, openapi.v1.json
 UrlShortener.http               Ready-made requests for VS Code REST Client
 .github/workflows/ci.yml        Build, test, vulnerable-package scan
 ```

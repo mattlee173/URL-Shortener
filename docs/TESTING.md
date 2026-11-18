@@ -29,7 +29,14 @@ or one layer: `dotnet test tests/UrlShortener.UnitTests`.
 - **Concurrency.** 20 parallel inserts of the same code must yield exactly one winner, on both
   stores.
 - **Regression tests for every defect found** (malformed JSON 500, timestamp precision mismatch,
-  OS-dependent URI parsing, Unicode host 500). Each is commented with what went wrong.
+  OS-dependent URI parsing, Unicode host 500, shutdown click loss, metadata enumeration bypass,
+  cache/delete race, IPv4 hidden in IPv6, admin throttling). Each is commented with what went wrong,
+  and the later ones were confirmed to fail on the old code.
+- **Deterministic interleaving.** The cache race test pauses a read after it fetched its row, runs a
+  delete, then releases the read. No sleeps, no flakiness.
+- **API contract snapshot.** `OpenApiDocumentTests` compares the live OpenAPI document with
+  `docs/openapi.v1.json`; set `UPDATE_OPENAPI_SNAPSHOT=1` to accept an intended change.
+- **Metrics as tests.** A `MeterListener` scoped to a private meter checks each instrument.
 - **Security as tests.** 20+ encodings of internal addresses, credential URLs, self-links,
   block-list subdomain matching.
 - **No fixed sleeps for async work** in integration tests. Click counting polls the stats endpoint
@@ -44,7 +51,9 @@ or one layer: `dotnet test tests/UrlShortener.UnitTests`.
 |---|---|
 | Compiler + nullable analysis + .NET analyzers (`latest-recommended`), **warnings as errors** | every build (`Directory.Build.props`) |
 | Code style enforced at build | `.editorconfig` + `EnforceCodeStyleInBuild` |
-| Unit + integration tests | `dotnet test`, CI |
+| Unit + integration tests (170 + 36) | `dotnet test`, CI |
+| API contract drift | OpenAPI snapshot test |
+| Redirect latency budget (p99 < 10 ms) | `tools/UrlShortener.LoadTest` (manual / pre-release) |
 | Vulnerable dependency scan | CI: `dotnet list package --vulnerable --include-transitive` |
 | Manual exploratory checks | redirect headers, 413/429 against real Kestrel, legacy-DB migration, SIGINT drain |
 

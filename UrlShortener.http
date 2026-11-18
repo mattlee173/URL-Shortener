@@ -7,6 +7,9 @@
 ### Health
 GET {{baseUrl}}/health
 
+### OpenAPI 3.1 document (the API contract)
+GET {{baseUrl}}/openapi/v1.json
+
 ### Create a short link with a generated code
 # @name create
 POST {{baseUrl}}/api/links

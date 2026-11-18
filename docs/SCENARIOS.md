@@ -117,3 +117,42 @@ allowed; credentials, self-links and block-list subdomain matching; expiry bound
 T-1 min, Gone at exactly T); UTC normalisation; migration upgrade, idempotence and newer-schema
 refusal; end-to-end 410 after real expiry, 429 with `Retry-After` and problem details, and 413 for a
 20 KB body (verified manually against Kestrel). The full Scenario 1 and 2 suites stayed green.
+
+---
+
+## Iteration 4: Review-driven hardening (brownfield)
+
+**Trigger:** the engineer's first run on real infrastructure (two defects, see AI_USAGE_LOG.md), then
+a fresh AI session asked to "get up to speed, verify, and report, then stop". It verified the build
+and tests, compared the code with the docs, and reported findings and a prioritised plan. **No code
+changed until the engineer approved the list.**
+
+**Decomposition** (ordered by risk; each item is one commit with tests and a log row):
+
+| # | Task | Kind | Depends on |
+|---|---|---|---|
+| H1 | Metadata endpoint: shared rate limit, 410 for deleted links | Bug fix (security) | — |
+| H2 | Cache/delete race | Bug fix (correctness) | — |
+| H3 | IPv4 hidden in IPv6 literals | Bug fix (security) | — |
+| H4 | Forwarded headers with a trusted-proxy list | Enhancement (deployability) | — |
+| H5 | Admin throttling + hashed key compare | Bug fix (security) | rate limiter (H1 pattern) |
+| H6 | OpenAPI document + snapshot test | Enhancement (contract) | H1, H5 (final status codes) |
+| H7 | Metrics + optional OTLP export | Enhancement (operability) | — |
+| H8 | Click retention job + migration 4 | Enhancement (privacy, data growth) | H7 (purge metric) |
+| H9 | Load test harness + baseline | Validation | all of the above |
+
+**Impact analysis highlights**
+- H1 changes a public contract (deleted links: 200 → 410), so it was flagged for sign-off. The redirect
+  contract is unchanged.
+- H2 is confined to the cache decorator; the repository interface is unchanged.
+- H8 adds a schema migration (appended, never edited) and a second writer on SQLite. Bounded batches
+  keep the click flusher from waiting.
+- H7 touches the constructors of the cache, recorder and flusher through optional parameters, so
+  existing tests and call sites still compile unchanged.
+
+**Validation:** every bug fix has a regression test, and each was confirmed to **fail on the old
+code** before the fix was applied (for H2, a deterministic interleaving of a read and a delete; for
+H3, 12 of 12 new cases failed). The full suite stays green after each commit (167 → 206 tests). The
+new repository contract test caught a defect in the AI's own in-memory purge implementation before
+it was committed. The load test confirmed the redirect latency target and measured the analytics
+throughput ceiling.

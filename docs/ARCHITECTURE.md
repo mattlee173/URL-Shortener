@@ -7,8 +7,8 @@ flowchart LR
     Client([HTTP client / browser])
 
     subgraph Api["UrlShortener.Api (ASP.NET Core Minimal APIs)"]
-        MW["Middleware<br/>exception handler · problem details<br/>rate limiter · 16 KB body cap"]
-        EP["LinkEndpoints<br/>POST/GET/DELETE /api/links<br/>GET /api/links/{code}/stats<br/>GET /{code}"]
+        MW["Middleware<br/>forwarded headers (opt-in) · exception handler<br/>problem details · rate limiter · 16 KB body cap"]
+        EP["LinkEndpoints<br/>POST/GET/DELETE /api/links<br/>GET /api/links/{code}/stats<br/>GET /{code} · /openapi/v1.json"]
         KEY["ApiKeyEndpointFilter"]
     end
 
@@ -27,6 +27,8 @@ flowchart LR
         CREPO["SqliteClickRepository"]
         CHAN["ChannelClickRecorder<br/>(bounded channel)"]
         FLUSH["ClickFlushService<br/>(BackgroundService)"]
+        RET["ClickRetentionService<br/>(BackgroundService)"]
+        MET["ShortenerMetrics<br/>(System.Diagnostics.Metrics)"]
         MIG["SqliteSchemaInitializer<br/>(versioned migrations)"]
     end
 
@@ -42,6 +44,8 @@ flowchart LR
     ABS -.implemented by.-> CACHE & CREPO & CHAN
     CACHE --> LREPO --> DB
     CHAN --> FLUSH --> CREPO --> DB
+    RET --> CREPO
+    CACHE & CHAN & FLUSH & RET -.-> MET
     MIG --> DB
 ```
 
@@ -49,7 +53,7 @@ flowchart LR
 |---|---|---|
 | **Core** | Domain model, business rules, validation, use-case services, ports (interfaces) | nothing (BCL only) |
 | **Infrastructure** | SQLite + in-memory adapters, cache decorator, analytics pipeline, migrations, DI wiring | Core, ASP.NET shared framework, Microsoft.Data.Sqlite |
-| **Api** | HTTP surface: routing, binding, auth filter, rate limiting, error mapping, configuration | Core, Infrastructure |
+| **Api** | HTTP surface: routing, binding, auth filter, rate limiting, forwarded headers, error mapping, OpenAPI, telemetry export, configuration | Core, Infrastructure, Microsoft.AspNetCore.OpenApi, OpenTelemetry (OTLP) |
 
 Dependencies point inwards (ports-and-adapters). Business rules can be unit tested without HTTP or a
 database, and storage can be swapped (SQL Server, Postgres, Redis) by adding an adapter, without
@@ -129,19 +133,25 @@ not the redirect.
 | Privacy-preserving analytics (HMAC visitor hash, referrer host only, device class only) | Store IP/UA/referrer verbatim | Data minimisation: unique-visitor counts without holding personal data. |
 | Versioned migrations via `PRAGMA user_version` | `CREATE IF NOT EXISTS` only; EF migrations | Supports real `ALTER`s (Scenario 3), upgrades existing databases, refuses to run against a newer schema. |
 | Options validated on start | Validate lazily | Misconfiguration (missing secrets, bad base URL) fails the deploy, not the first request. |
-| Admin API key, fail closed | Open endpoints; full identity | Proportionate for a prototype. Missing key ⇒ 403, never open. Constant-time comparison. |
+| Admin API key, fail closed | Open endpoints; full identity | Proportionate for a prototype. Missing key ⇒ 403, never open. SHA-256 digests compared in constant time; per-IP admin rate limit applied before the key check. |
+| Public metadata shares the redirect rate limit; deleted links → 410 | Admin-only metadata | A public "where does this go?" preview is useful against phishing, but it must not be an unthrottled enumeration oracle or advertise taken-down targets. |
+| Forwarded headers opt-in, explicit proxy allow-list | Always on; trust any proxy | Bare Kestrel needs none; trusting X-Forwarded-For from anyone lets clients choose their own rate-limit bucket. |
+| Metrics on BCL `Meter`; OTLP export only when configured | Prometheus endpoint; always-on SDK | No dependency in Infrastructure; no export loop without a collector; the Prometheus exporter is still prerelease. |
+| Retention purge in bounded batches + time index | Unbounded `DELETE`; id-range delete | Keeps SQLite's single write lock short so click flushing never stalls; ids aren't strictly time-ordered. |
+| OpenAPI snapshot test | Generated doc only | Contract changes appear as reviewed diffs instead of slipping through. |
 
 ## 4. Cross-cutting concerns
 
 - **Errors:** every non-2xx response is RFC 9457 `application/problem+json`, with a stable
   machine-readable `errorCode` for domain errors (`alias_taken`, `url_host_not_allowed`, …).
   Malformed JSON gets a 400, not a 500 (`BadRequestExceptionHandler`).
-- **Configuration:** `Shortener`, `Storage`, `Analytics`, `RateLimiting`, `Security` sections.
+- **Configuration:** `Shortener`, `Storage`, `Analytics`, `RateLimiting`, `ForwardedHeaders`, `Security` sections.
   Secrets (`Security:AdminApiKey`, `Analytics:VisitorHashKey`) come from user-secrets or environment
   variables. The only values in source control are dev placeholders, in `appsettings.Development.json`.
-- **Observability:** `/health`, ASP.NET Core structured logging, and source-generated log messages
-  for analytics failures. Dropped click events are counted (`ChannelClickRecorder.DroppedCount`),
-  ready to export as a metric.
+- **Observability:** `/health`, ASP.NET Core structured logging, source-generated log messages for
+  analytics failures, and the `UrlShortener` meter (cache hit/miss, clicks dropped / persisted /
+  failed / purged, buffer depth) next to ASP.NET Core's `http.server.request.duration`. Exported over
+  OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 - **Quality gates (build-time):** nullable reference types, `AnalysisLevel=latest-recommended`,
   `TreatWarningsAsErrors`, code style enforced in build, CI workflow (`.github/workflows/ci.yml`)
   running build, tests and a vulnerable-package scan.

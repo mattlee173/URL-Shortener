@@ -94,6 +94,7 @@ engineer approved the prioritised list of findings below; each item is one commi
 | Metrics (`ShortenerMetrics`, `TelemetrySetup`, RISKS §5.5) | Generated, accepted | Instruments use the BCL `Meter` API in Infrastructure, so no package lands there: cache hit/miss, clicks dropped / persisted / failed / purged, buffer depth. Redirect latency is **not** duplicated, because ASP.NET Core already emits `http.server.request.duration` by route and status. Export goes through OpenTelemetry 1.21.0 (OTLP) **only** when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; otherwise the SDK isn't registered, and `dotnet-counters` still shows everything. A Prometheus `/metrics` endpoint was **considered → rejected**: that exporter is still prerelease, and the endpoint would need its own auth. **Deliberate exception to the lazy-options rule:** the exporter switch is read at registration (the Aspire pattern), because it is a deployment switch, not behaviour tests override. Unit tests drive the instruments through a `MeterListener` scoped to a private meter. |
 | Click retention job (`ClickRetentionService`, migration 4, RISKS §5.4) | Generated, **edited** | Deletes clicks older than `RetentionDays` (395 = 13 months, so year-on-year comparisons still work; 0 disables), sweeping at startup and every 6 h. Deletes run in batches of 5 000 so the click flusher, SQLite's only other writer, never waits long. **Migration 4** adds an index on `occurred_at_ms`: the existing `(code, time)` index can't serve a time-only filter, so without it every sweep would scan the whole table; a test checks the query plan uses it after upgrading a v3 database. Startup validation rejects `RetentionDays` shorter than `StatsWindowDays`. Deleting by `id` range was **considered → rejected**: batched clicks can land slightly out of time order, so ids aren't strictly time-ordered. **Edited:** the new repository contract test caught an off-by-N bug in the AI-written in-memory implementation (the batch counter kept counting past `maxCount`) before it was committed; SQLite was correct. This shows why contract suites run against every store. |
 | Load test harness (`tools/UrlShortener.LoadTest`) and baseline | Generated, accepted | k6 wasn't installed, and NBomber needs a commercial licence for business use, so both were **considered → rejected** in favour of a ~150-line dependency-free console tool (closed-loop workers, exact percentiles, non-zero exit on a breached budget). Run against a live Release build: **~216 k redirects/s, p99 0.76 ms, 0 failures**, meeting the 10 ms target. The run also measured the analytics ceiling: about **32 k clicks/s** reach SQLite, and the excess is dropped and counted as designed. That is a capacity limit to document, not a defect (TESTING.md). Also smoke-tested the app with `OTEL_EXPORTER_OTLP_ENDPOINT` set and no collector: it starts, redirects and serves OpenAPI normally. |
+| Documentation sync after the hardening iteration | Generated, reviewed | Test counts (206), the "verified on real packages" status, README configuration and API tables, architecture diagram and decisions, the new SCENARIOS "Iteration 4" section, ENGINEERING_SUMMARY, and the remaining RISKS §5 items. The engineer-of-record name and the §5 sign-off ticks are deliberately **left for the engineer**: sign-off has to be the human's act, not the AI's. |
 
 ---
 
@@ -102,12 +103,15 @@ engineer approved the prioritised list of findings below; each item is one commi
 1. **Compile with warnings as errors**: nullable analysis, .NET analyzers at `latest-recommended`,
    code style. Several AI suggestions were rejected at this gate (CA1716, CA1000, CA1861, CS8602,
    CS8629).
-2. **Automated tests**: 143 unit and 24 integration test cases at the time of writing.
+2. **Automated tests**: 170 unit and 36 integration test cases at the time of writing, plus an
+   OpenAPI contract snapshot.
 3. **Manual exploratory verification** of behaviour tests can't easily show: real Kestrel limits
    (413), `Retry-After` on 429, legacy-database upgrade, SIGINT drain of buffered clicks, IDN
-   redirect.
-4. **Security review** of every input path (see [RISKS.md](RISKS.md) §2).
-5. **CI** (`.github/workflows/ci.yml`): build, test, vulnerable-package scan on every push/PR.
+   redirect, startup with the OTLP exporter enabled.
+4. **Performance**: the redirect load test (`tools/UrlShortener.LoadTest`) with a p99 budget; see
+   TESTING.md for the baseline.
+5. **Security review** of every input path (see [RISKS.md](RISKS.md) §2).
+6. **CI** (`.github/workflows/ci.yml`): build, test, vulnerable-package scan on every push/PR.
 
 ### Verification environment note
 
@@ -116,6 +120,12 @@ temporary local stand-ins for `Microsoft.Data.Sqlite`, xUnit and `WebApplication
 same API surface, backed by the native SQLite library and a real Kestrel host. They are **not** part
 of this repository. **The engineer must run `dotnet test` against the real packages** (see README)
 before treating the suite as verified. That run is the authoritative quality gate.
+
+**Status (2026-11-17): verified.** On the engineer's Windows 11 machine with the real NuGet packages
+(.NET SDK 10, ASP.NET Core runtime 10.0.15): `dotnet build` (Debug and a forced Release rebuild) gives
+0 warnings, `dotnet test` passes all tests, and `dotnet list package --vulnerable --include-transitive`
+is clean. The first such run found the two post-delivery defects above. Every later change in this
+log was built and fully tested on this machine before it was committed.
 
 ---
 

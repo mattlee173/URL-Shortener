@@ -8,12 +8,14 @@ Treat this as production-grade work: modular, testable, secure, with traceable d
 
 ```powershell
 dotnet build                                  # warnings are errors (Directory.Build.props)
-dotnet test                                   # 143 unit + 24 integration test cases, all must pass
+dotnet test                                   # 170 unit + 36 integration test cases, all must pass
 dotnet run --project src/UrlShortener.Api     # http://localhost:5260 (Development env)
 ```
 
 Manual API checks: `UrlShortener.http` (VS Code REST Client). Dev admin key:
-`dev-only-admin-key-change-me` (header `X-Api-Key`).
+`dev-only-admin-key-change-me` (header `X-Api-Key`). OpenAPI: `/openapi/v1.json`; the committed
+snapshot `docs/openapi.v1.json` is checked by a test (`UPDATE_OPENAPI_SNAPSHOT=1` to accept changes).
+Load test: `tools/UrlShortener.LoadTest` against a live Release instance (see docs/TESTING.md).
 
 ## Architecture (ports and adapters, .NET 10, Minimal APIs)
 
@@ -21,9 +23,12 @@ Manual API checks: `UrlShortener.http` (VS Code REST Client). Dev admin key:
   `Result<T>` + `DomainError` for expected failures (no exceptions for control flow).
 - `src/UrlShortener.Infrastructure`: SQLite (raw ADO.NET via Microsoft.Data.Sqlite 10.0.15),
   in-memory stores, `CachedShortLinkRepository`, analytics pipeline (bounded channel →
-  `ClickFlushService`), versioned migrations (`SqliteSchemaInitializer`, `PRAGMA user_version`).
+  `ClickFlushService`), `ClickRetentionService`, `ShortenerMetrics` (BCL Meter), versioned
+  migrations (`SqliteSchemaInitializer`, `PRAGMA user_version`, currently 4).
 - `src/UrlShortener.Api`: endpoints (`Endpoints/LinkEndpoints.cs`), `ResultMapping` (domain error →
-  RFC 9457 problem details with `errorCode`), API-key filter, rate limiting, exception handler.
+  RFC 9457 problem details with `errorCode`), API-key filter (`RequireAdminKey()` = admin rate limit
+  + filter + OpenAPI metadata), rate limiting, forwarded headers (opt-in), OpenAPI, OTLP telemetry
+  (only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set), exception handler.
 - Tests: `tests/UrlShortener.UnitTests` (including repository **contract suites** run against
   in-memory and SQLite) and `tests/UrlShortener.IntegrationTests` (`WebApplicationFactory<Program>`,
   temp SQLite file per fixture, config via `UseSetting`).
@@ -38,12 +43,15 @@ ENGINEERING_SUMMARY).
 - The redirect hot path does no DB writes; analytics is best-effort and must never block or fail a redirect.
 - No raw IPs, full referrers or user agents stored (HMAC visitor hash, referrer host, device class).
 - Read options lazily (`IOptions`), never eagerly in `Add*` methods (breaks WebApplicationFactory overrides).
+  Sole documented exception: the OTLP exporter switch in `TelemetrySetup` (deployment switch, not test-overridable).
 - Timestamps are UTC, truncated to milliseconds (storage precision).
 - Schema changes: **append** a new migration to `SqliteSchemaInitializer.Migrations`; never edit a shipped one.
 - Time-dependent code takes `TimeProvider`; tests use `ManualTimeProvider`.
 - Every bug fix gets a regression test with a comment explaining what went wrong.
 - Secrets only via user-secrets or env vars; `appsettings.Development.json` holds dev placeholders only.
 - Do not suppress NuGet audit (NU19xx) warnings; upgrade the package instead.
+- Admin-only endpoints use `.RequireAdminKey()`; new public lookup endpoints need a rate-limit policy.
+- Any API contract change must update `docs/openapi.v1.json` in the same commit.
 
 ## Traceability (required by the assignment)
 
@@ -61,10 +69,17 @@ Commits: Scenario 1 greenfield → Scenario 2 brownfield (analytics) → Scenari
 (2) .NET 10 `BackgroundService` start/stop race that could drop buffered clicks, fixed in
 `ClickFlushService.StopAsync`.
 
+Then a review-driven hardening iteration (2026-11-17, one commit each): metadata endpoint
+rate limit + 410 for deleted links; cache/delete race; IPv4-in-IPv6 target blocking; opt-in forwarded
+headers; admin throttling + SHA-256 key compare; OpenAPI + snapshot test; metrics + optional OTLP;
+click retention + migration 4; load-test tool and baseline (~216k req/s, p99 0.76 ms).
+
 The original code was generated in a sandbox without NuGet access, so the engineer's machine is the
 authoritative test environment.
 
 ## Open items / possible next steps
 
-See `docs/RISKS.md` §5: forwarded-headers config for proxies, OpenAPI generation, OpenTelemetry
-metrics, click retention job, admin brute-force throttling, load testing.
+See `docs/RISKS.md` §5. Remaining: user accounts / link ownership, homograph flagging, analytics
+throughput ceiling (~32k clicks/s on SQLite), visitor-hash key rotation, multi-instance state
+(distributed cache/limiter). The engineer still needs to tick the sign-off table in
+`docs/AI_USAGE_LOG.md` §5 and fill in the engineer-of-record name.

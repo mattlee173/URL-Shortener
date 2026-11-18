@@ -18,26 +18,33 @@
      implemented: expiry with versioned migrations, destination safety rules, rate limiting, body cap.
 4. **Validate continuously**: warnings-as-errors build, unit + contract + integration tests, manual
    exploratory probes, and a regression test for each defect found.
+5. **Review, then harden** ([SCENARIOS.md](SCENARIOS.md#iteration-4-review-driven-hardening-brownfield)):
+   a fresh AI session verified the build on real infrastructure, reviewed the code against the docs,
+   and proposed a prioritised list. The engineer approved it, and each item landed as one focused
+   commit with tests and a log row.
 
 ## Artifacts
 
 | Artifact | Location |
 |---|---|
 | Runnable service | `src/UrlShortener.Api` (`dotnet run`) |
-| API definition | README "API" table, endpoint summaries in code, `UrlShortener.http` |
-| Schema | `SqliteSchemaInitializer.Migrations` (versioned, forward-only) |
-| Unit tests | `tests/UrlShortener.UnitTests` (143 cases) |
-| Integration tests | `tests/UrlShortener.IntegrationTests` (24 cases) |
+| API definition | OpenAPI 3.1 at `/openapi/v1.json`, committed as `docs/openapi.v1.json` and guarded by a contract test; README "API" table; `UrlShortener.http` |
+| Schema | `SqliteSchemaInitializer.Migrations` (versioned, forward-only; 4 migrations) |
+| Unit tests | `tests/UrlShortener.UnitTests` (170 cases) |
+| Integration tests | `tests/UrlShortener.IntegrationTests` (36 cases) |
+| Load test | `tools/UrlShortener.LoadTest`; baseline in TESTING.md |
 | CI pipeline | `.github/workflows/ci.yml` |
 | Docs | `docs/` |
-| Git history | One commit per scenario |
+| Git history | One commit per scenario, then one per fix or enhancement |
 
 ## Validation summary
 
 - Concurrency correctness: 20-way race on one code yields exactly one winner (SQLite and in-memory).
-- Security: 20+ internal-address encodings, credential URLs, self-links and block-list matching
-  rejected; allowed boundary cases accepted; constant-time admin key check; fail-closed when
-  unconfigured.
+- Security: 30+ internal-address encodings (including IPv4 embedded in IPv6), credential URLs,
+  self-links and block-list matching rejected; allowed boundary cases accepted; constant-time admin
+  key check with no length leak; admin endpoints throttled; fail-closed when unconfigured.
+- Performance: ~216 k redirects/s at p99 0.76 ms on the engineer's machine (target < 10 ms). The
+  analytics ceiling is ~32 k clicks/s with SQLite; above that, clicks are dropped and counted.
 - Reliability: analytics overflow, storage failure and graceful-shutdown drain tested; malformed or
   oversized input never yields 500.
 - **Four defects** were caught by verification during development and fixed with regression tests:
@@ -46,6 +53,10 @@
 - **Two more were caught on the engineer's first real run** (see AI_USAGE_LOG.md): a vulnerable
   transitive SQLite package (CVE-2025-6965, fixed by upgrading `Microsoft.Data.Sqlite`), and a
   .NET 10 start/stop race that could drop buffered clicks on a fast shutdown.
+- **Four more were found by the post-delivery review** and fixed, each with a regression test shown
+  to fail before the fix: rate-limit bypass and deleted-target leak on the metadata endpoint; a cache
+  race that kept deleted links redirecting; IPv4 targets hidden in IPv6 literals; and unthrottled
+  admin endpoints with a key-length timing leak.
 
 ## Key risks and trade-offs
 
@@ -57,8 +68,8 @@ Full detail in [RISKS.md](RISKS.md). The most important:
   protect redirect latency.
 - **Private-network check covers IP literals and internal TLDs, not DNS names** that resolve
   internally. Resolving DNS would add SSRF and rebinding risk to the shortener itself.
-- **Behind a reverse proxy**, forwarded headers must be configured with trusted proxies before
-  per-IP rate limiting and visitor hashing are meaningful.
+- **Behind a reverse proxy**, `ForwardedHeaders` must list the proxy's addresses before per-IP rate
+  limiting and visitor hashing mean anything. It's off by default and fails closed when misconfigured.
 
 ## Assumptions
 
@@ -67,9 +78,10 @@ optional and absolute; UTC day boundaries for analytics; no URL deduplication.
 
 ## Limitations / next steps
 
-User accounts and link ownership; OpenAPI document generation; OpenTelemetry metrics (dropped clicks,
-cache hit ratio, redirect latency); retention job for click data; reputation feed for malicious
-URLs; brute-force throttling on admin endpoints; load testing.
+User accounts and link ownership; reputation feed for malicious URLs; distributed cache, rate
+limiter and database for multi-instance deployments; durable queue for billing-grade click counts;
+visitor-hash key rotation; dashboards and alerts on the exported metrics; load tests from a
+separate machine over TLS.
 
 ## Ownership
 
