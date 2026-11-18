@@ -17,6 +17,12 @@ public sealed class RateLimitingOptions
 
     /// <summary>Redirects allowed per client IP per minute. Generous: real users click a few links, scanners click thousands.</summary>
     public int RedirectPermitsPerMinute { get; set; } = 300;
+
+    /// <summary>
+    /// Management calls (delete, stats) allowed per client IP per minute, counted before the API key is
+    /// checked. Operators make a handful of calls; a key-guessing script makes thousands.
+    /// </summary>
+    public int AdminPermitsPerMinute { get; set; } = 30;
 }
 
 /// <summary>
@@ -32,6 +38,7 @@ internal static class RateLimitingSetup
 {
     public const string CreatePolicy = "create";
     public const string RedirectPolicy = "redirect";
+    public const string AdminPolicy = "admin";
 
     public static IServiceCollection AddUrlShortenerRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
@@ -42,6 +49,7 @@ internal static class RateLimitingSetup
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             limiter.AddPolicy(CreatePolicy, http => Partition(http, o => o.CreatePermitsPerMinute));
             limiter.AddPolicy(RedirectPolicy, http => Partition(http, o => o.RedirectPermitsPerMinute));
+            limiter.AddPolicy(AdminPolicy, http => Partition(http, o => o.AdminPermitsPerMinute));
             limiter.OnRejected = WriteRejectionAsync;
         });
 

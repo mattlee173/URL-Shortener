@@ -30,7 +30,7 @@
 | Link enumeration | 62⁷ random keyspace; redirect **and** metadata lookups share one per-IP rate limit | Custom aliases are guessable by nature. |
 | Taken-down link still advertising its target | Metadata for deleted links returns 410 without `targetUrl` | — |
 | Hijacking a deleted code | Codes never reissued | — |
-| Brute-forcing the admin key | Constant-time compare | **No rate limit/lockout on management endpoints** (add a policy before exposure). |
+| Brute-forcing the admin key | Per-IP `admin` rate limit (30/min) applied before the key check; SHA-256 digests compared in constant time (no length leak) | Distributed guessing from many IPs; mitigate with a high-entropy key (≥ 32 random bytes) and key rotation. |
 | Host-header injection in short URLs | `BaseUrl` from config, not request | — |
 | Personal data in analytics | HMAC visitor hash, referrer host only, device class only | Hash key rotation and retention policy not automated. |
 | Secrets in source control | Only dev placeholders in `appsettings.Development.json` | Must use user-secrets/env/Key Vault in real environments. |
@@ -74,6 +74,6 @@
 4. **No data retention job** for `click_events`. Add a scheduled purge (e.g. older than 13 months).
 5. **No metrics export** (OpenTelemetry). `DroppedCount`, cache hit ratio, and redirect latency are
    the first three metrics to add.
-6. **Admin endpoints have no brute-force throttling** (see §2).
+6. ~~**Admin brute-force throttling.**~~ **Done (2026-11-17).** See §2.
 7. **Unicode lookalike (homograph) domains** are stored as punycode, which makes them visible in the
    API, but they are not flagged.

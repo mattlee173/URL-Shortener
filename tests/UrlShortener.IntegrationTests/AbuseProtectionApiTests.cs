@@ -124,6 +124,39 @@ public sealed class AbuseProtectionApiTests : IClassFixture<ApiFactory>
             statuses);
     }
 
+    [Fact]
+    public async Task AdminEndpoints_AreThrottled_BeforeTheKeyIsChecked()
+    {
+        // Regression: delete and stats had no rate limit, so the admin key could be guessed at full speed.
+        using var limited = _factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:AdminPermitsPerMinute", "2"));
+        using var client = limited.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", "wrong-guess");
+
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 3; i++)
+        {
+            statuses.Add((await client.GetAsync(new Uri("/api/links/abc1234/stats", UriKind.Relative))).StatusCode);
+        }
+
+        Assert.Equal(
+            new[] { HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized, HttpStatusCode.TooManyRequests },
+            statuses);
+    }
+
+    [Theory]
+    [InlineData("integration-test-admin-ke")]   // prefix of the real key (shorter)
+    [InlineData("integration-test-admin-keyX")] // real key plus a suffix (longer)
+    [InlineData("INTEGRATION-TEST-ADMIN-KEY")]  // keys are case-sensitive
+    public async Task AdminKey_NearMisses_AreRejected(string key)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/links/abc1234/stats");
+        request.Headers.Add("X-Api-Key", key);
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
     {
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

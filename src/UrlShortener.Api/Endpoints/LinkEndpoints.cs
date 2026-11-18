@@ -27,11 +27,13 @@ internal static class LinkEndpoints
             .WithSummary("Get metadata for a short link.");
 
         api.MapDelete("/{code}", DeleteAsync)
+            .RequireRateLimiting(RateLimitingSetup.AdminPolicy)
             .WithName("DeleteLink")
             .WithSummary("Soft-delete a short link (requires X-Api-Key). The code is never reissued.")
             .AddEndpointFilter<ApiKeyEndpointFilter>();
 
         api.MapGet("/{code}/stats", GetStatsAsync)
+            .RequireRateLimiting(RateLimitingSetup.AdminPolicy)
             .WithName("GetLinkStats")
             .WithSummary("Click analytics for a link (requires X-Api-Key).")
             .AddEndpointFilter<ApiKeyEndpointFilter>();

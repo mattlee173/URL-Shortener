@@ -26,6 +26,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // Tests create many links from one client; rate limiting has its own dedicated tests.
         builder.UseSetting("RateLimiting:CreatePermitsPerMinute", "100000");
         builder.UseSetting("RateLimiting:RedirectPermitsPerMinute", "100000");
+        builder.UseSetting("RateLimiting:AdminPermitsPerMinute", "100000");
     }
 
     /// <summary>Client that does not follow redirects, so tests can assert on the 302 itself.</summary>
