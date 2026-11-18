@@ -23,7 +23,7 @@
 |---|---|---|
 | XSS / local file via redirect (`javascript:`, `data:`, `file:`) | http/https allow-list | — |
 | Phishing via credentials in URL (`https://bank.com@evil`) | Rejected | — |
-| Trusted domain pointing into intranets / cloud metadata | IP-literal + internal-TLD checks on canonicalised host | **DNS names that resolve to private IPs are not caught** (the service never resolves DNS, by design: avoids SSRF in the shortener itself and DNS-rebinding TOCTOU). |
+| Trusted domain pointing into intranets / cloud metadata | IP-literal + internal-TLD checks on canonicalised host, including IPv4 embedded in IPv6 (compatible, NAT64, 6to4) and special-purpose ranges | **DNS names that resolve to private IPs are not caught** (the service never resolves DNS, by design: avoids SSRF in the shortener itself and DNS-rebinding TOCTOU). |
 | Malware/phishing destinations | Operator block list | No reputation feed (Safe Browsing etc.); list is static. |
 | Redirect loops / chain obfuscation | Self-host rejected | Other shorteners are not blocked (could add their domains to `BlockedHosts`). |
 | Link enumeration | 62⁷ random keyspace; redirect **and** metadata lookups share one per-IP rate limit | Custom aliases are guessable by nature. |

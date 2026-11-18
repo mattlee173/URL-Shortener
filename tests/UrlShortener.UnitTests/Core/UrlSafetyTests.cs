@@ -38,6 +38,35 @@ public class UrlSafetyTests
         Assert.Equal("url_host_not_allowed", _validator.Validate(url).Error?.Code);
     }
 
+    // Regression: these IPv6 spellings carry a private IPv4 address (or a non-routable one) and
+    // passed validation, because only IPv4-mapped (::ffff:a.b.c.d) addresses were unwrapped.
+    [Theory]
+    [InlineData("http://[::127.0.0.1]/")]                       // IPv4-compatible (deprecated)
+    [InlineData("http://[::10.0.0.1]/")]
+    [InlineData("http://[64:ff9b::10.0.0.1]/")]                 // NAT64 well-known prefix
+    [InlineData("http://[64:ff9b::a9fe:a9fe]/")]                // NAT64 to 169.254.169.254 (cloud metadata)
+    [InlineData("http://[64:ff9b:1::1]/")]                      // local-use NAT64
+    [InlineData("http://[2002:7f00:1::]/")]                     // 6to4 wrapping 127.0.0.1
+    [InlineData("http://[2002:c0a8:101::1]/")]                  // 6to4 wrapping 192.168.1.1
+    [InlineData("http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/")] // Teredo
+    [InlineData("http://[2001:db8::1]/")]                       // IPv6 documentation range
+    [InlineData("http://198.18.0.1/")]                          // benchmarking range
+    [InlineData("http://192.0.2.10/")]                          // TEST-NET-1
+    [InlineData("http://203.0.113.5/")]                         // TEST-NET-3
+    public void Rejects_EmbeddedAndSpecialPurposeAddresses(string url)
+    {
+        Assert.Equal("url_host_not_allowed", _validator.Validate(url).Error?.Code);
+    }
+
+    [Theory]
+    [InlineData("http://[64:ff9b::808:808]/")]  // NAT64 to 8.8.8.8 is a public destination
+    [InlineData("http://[2002:808:808::1]/")]   // 6to4 wrapping 8.8.8.8
+    [InlineData("http://198.20.0.1/")]          // just outside 198.18.0.0/15
+    public void Allows_EmbeddedPublicAddresses(string url)
+    {
+        Assert.True(_validator.Validate(url).IsSuccess);
+    }
+
     [Theory]
     [InlineData("http://8.8.8.8/")]
     [InlineData("http://172.32.0.1/")]   // just outside 172.16.0.0/12

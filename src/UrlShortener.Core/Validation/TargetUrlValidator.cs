@@ -20,6 +20,10 @@ public sealed class TargetUrlValidator
 
     private static readonly string[] InternalHostSuffixes = [".localhost", ".local", ".internal", ".lan", ".home.arpa"];
 
+    private static readonly byte[] Nat64Prefix = [0x00, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    private static readonly byte[] Nat64LocalPrefix = [0x00, 0x64, 0xff, 0x9b, 0x00, 0x01];
+
     private readonly ShortenerOptions _options;
     private readonly string? _selfHost;
     private readonly string[] _blockedHosts;
@@ -102,39 +106,78 @@ public sealed class TargetUrlValidator
             return true;
         }
 
-        if (!IPAddress.TryParse(host, out var ip))
-        {
-            return false;
-        }
+        return IPAddress.TryParse(host, out var ip) && IsNonPublicAddress(ip);
+    }
 
+    /// <summary>
+    /// True for addresses that are not globally routable (IANA special-purpose registries), including
+    /// IPv6 forms that carry an IPv4 address inside them, which would otherwise smuggle a private IPv4
+    /// target past an IPv4-only check.
+    /// </summary>
+    private static bool IsNonPublicAddress(IPAddress ip)
+    {
         if (ip.IsIPv4MappedToIPv6)
         {
             ip = ip.MapToIPv4();
         }
 
-        if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))
+        if (ip.AddressFamily != AddressFamily.InterNetworkV6)
+        {
+            return IsNonPublicIPv4(ip.GetAddressBytes());
+        }
+
+        // fc00::/7 unique-local, fe80::/10 link-local, fec0::/10 site-local, ff00::/8 multicast.
+        if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6UniqueLocal || ip.IsIPv6Multicast)
         {
             return true;
         }
 
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        var b = ip.GetAddressBytes();
+        var span = b.AsSpan();
+
+        // ::/96 IPv4-compatible (deprecated, e.g. ::127.0.0.1); also covers :: and ::1.
+        if (span[..12].IndexOfAnyExcept((byte)0) < 0)
         {
-            // fc00::/7 unique-local, fe80::/10 link-local, ff00::/8 multicast.
-            return ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6UniqueLocal || ip.IsIPv6Multicast;
+            return IsNonPublicIPv4(b[12..]);
         }
 
-        var b = ip.GetAddressBytes();
-        return b[0] switch
+        // 64:ff9b::/96 NAT64 well-known prefix: the last 32 bits are the IPv4 destination.
+        if (span[..12].SequenceEqual(Nat64Prefix))
         {
-            0 or 10 or 127 => true,                       // "this" network, RFC 1918, loopback
-            100 => b[1] is >= 64 and <= 127,              // RFC 6598 carrier-grade NAT
-            169 => b[1] == 254,                           // link-local / cloud metadata (169.254.169.254)
-            172 => b[1] is >= 16 and <= 31,               // RFC 1918
-            192 => b[1] == 168 || (b[1] == 0 && b[2] == 0), // RFC 1918, IETF protocol assignments
-            >= 224 => true,                               // multicast + reserved
-            _ => false,
-        };
+            return IsNonPublicIPv4(b[12..]);
+        }
+
+        // 64:ff9b:1::/48 local-use NAT64: operator-defined mapping, so the destination is unknowable.
+        if (span[..6].SequenceEqual(Nat64LocalPrefix))
+        {
+            return true;
+        }
+
+        // 2002::/16 6to4: bits 16-47 are the IPv4 address of the tunnel endpoint.
+        if (b[0] == 0x20 && b[1] == 0x02)
+        {
+            return IsNonPublicIPv4(b[2..6]);
+        }
+
+        // 2001::/32 Teredo (obsolete, embedded address is obfuscated) and 2001:db8::/32 documentation.
+        return b[0] == 0x20 && b[1] == 0x01 && ((b[2] == 0 && b[3] == 0) || (b[2] == 0x0d && b[3] == 0xb8));
     }
+
+    private static bool IsNonPublicIPv4(byte[] b) => b[0] switch
+    {
+        0 or 10 or 127 => true,                                 // "this" network, RFC 1918, loopback
+        100 => b[1] is >= 64 and <= 127,                        // RFC 6598 carrier-grade NAT
+        169 => b[1] == 254,                                     // link-local / cloud metadata (169.254.169.254)
+        172 => b[1] is >= 16 and <= 31,                         // RFC 1918
+        192 => b[1] == 168                                      // RFC 1918
+            || (b[1] == 0 && b[2] is 0 or 2)                    // IETF protocol assignments, TEST-NET-1
+            || (b[1] == 88 && b[2] == 99),                      // deprecated 6to4 relay anycast
+        198 => b[1] is 18 or 19                                 // benchmarking (often used internally)
+            || (b[1] == 51 && b[2] == 100),                     // TEST-NET-2
+        203 => b[1] == 0 && b[2] == 113,                        // TEST-NET-3
+        >= 224 => true,                                         // multicast, reserved, broadcast
+        _ => false,
+    };
 
     private static DomainError Invalid(string code, string message) => DomainError.Validation(code, message, Field);
 }

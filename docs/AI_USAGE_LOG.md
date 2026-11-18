@@ -87,6 +87,7 @@ engineer approved the prioritised list of findings below; each item is one commi
 |---|---|---|
 | Public metadata endpoint `GET /api/links/{code}` | **Defect found → fixed** | Review finding: it was unauthenticated **and** unthrottled, so it answered "does this code exist?" without the redirect's rate limit (enumeration bypass, contradicting RISKS §2), and it returned the target of **deleted** links (a phishing link taken down stayed discoverable). Fix: the endpoint shares the redirect's per-IP budget, and deleted links return 410 `link_deleted` without the target. Expired links still return metadata (expiry is not a takedown). Putting the endpoint behind the admin key was **considered → rejected**: a public "where does this go?" preview is a legitimate anti-phishing feature. Regression tests at unit and integration level. |
 | Cache repopulated with a stale row after delete (`CachedShortLinkRepository`) | **Defect found → fixed** | Review finding: a read that fetched the row just before a delete committed could cache it *after* the delete evicted the key, so the deleted link kept redirecting for the full TTL (60 s) on a single instance. Fix: a delete counter; a read that overlaps a delete removes what it just cached (the check runs after `Set` so the check-then-set window is closed too). Per-key versioning and caching a tombstone were **considered → rejected**: more state for a rare event, where the cost of the global counter is one uncached read. Deterministic regression test that interleaves the read and the delete; confirmed it fails without the fix. |
+| Private IPv4 addresses hidden inside IPv6 literals (`TargetUrlValidator`) | **Defect found → fixed** | Review finding: only IPv4-mapped (`::ffff:a.b.c.d`) addresses were unwrapped, so IPv4-compatible (`::127.0.0.1`), NAT64 (`64:ff9b::a9fe:a9fe` = the metadata IP) and 6to4 (`2002:7f00:1::`) literals passed, as did Teredo and the documentation and benchmarking ranges. Fix: unwrap each embedded-IPv4 form and check the inner address; block local-use NAT64 and Teredo outright, since their destination can't be known. 12 new reject cases (all failed before the fix) and 3 allow cases (public addresses wrapped the same ways). The residual risk (DNS names that resolve to private IPs) is unchanged and still documented. |
 
 ---
 
@@ -130,7 +131,7 @@ approval before merging or deploying:
 | Change | Why high-impact | Sign-off |
 |---|---|---|
 | Schema migrations 1–3 (`SqliteSchemaInitializer`) | Irreversible on production data | ☐ |
-| Destination safety rules (`TargetUrlValidator`) | Security boundary; false positives block legitimate users | ☐ |
+| Destination safety rules (`TargetUrlValidator`), incl. 2026-11-17 embedded-IPv4 / special-purpose additions | Security boundary; false positives block legitimate users | ☐ |
 | Admin API-key filter (fail-closed behaviour) | AuthN for destructive operations | ☐ |
 | Rate-limit values (20 create / 300 redirect per IP per min) | Can lock out real users behind NAT | ☐ |
 | Analytics data model (what personal data is and isn't stored) | Privacy / compliance | ☐ |
