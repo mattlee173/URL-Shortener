@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
-using UrlShortener.Api;
+using UrlShortener.Api.Configuration;
 using UrlShortener.Api.Endpoints;
+using UrlShortener.Api.Errors;
 using UrlShortener.Api.Security;
 using UrlShortener.Core;
 using UrlShortener.Core.Abstractions;
@@ -8,6 +9,7 @@ using UrlShortener.Core.Analytics;
 using UrlShortener.Core.Services;
 using UrlShortener.Core.Validation;
 using UrlShortener.Infrastructure;
+using UrlShortener.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 

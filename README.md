@@ -38,7 +38,7 @@ is in [docs/AI_USAGE_LOG.md](docs/AI_USAGE_LOG.md).
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (`dotnet --version` ≥ 10.0.100)
 - VS Code with the **C# Dev Kit** extension (for running and debugging tests)
-- Optional: the **REST Client** extension (`humao.rest-client`) to use `UrlShortener.http`
+- Optional: the **REST Client** extension (`humao.rest-client`) to use `src/UrlShortener.Api/UrlShortener.Api.http`
 
 ### Build, test, run
 
@@ -55,7 +55,7 @@ is at **http://localhost:5260/openapi/v1.json** (committed copy: [docs/openapi.v
 
 ### Try it
 
-Open `UrlShortener.http` in VS Code and click **Send Request** on each block, or use curl:
+Open `src/UrlShortener.Api/UrlShortener.Api.http` in VS Code and click **Send Request** on each block, or use curl:
 
 ```bash
 # Create
@@ -139,13 +139,13 @@ Watch them locally with `dotnet-counters monitor -n UrlShortener.Api --counters 
 src/
   UrlShortener.Core/            Domain, rules, use cases, ports. No dependencies.
   UrlShortener.Infrastructure/  SQLite + in-memory adapters, cache, analytics pipeline, migrations
-  UrlShortener.Api/             Minimal API endpoints, auth filter, rate limiting, error mapping
+  UrlShortener.Api/             Minimal API: Endpoints/, Contracts/, Security/, Errors/, Configuration/ (startup wiring),
+                                UrlShortener.Api.http (ready-made requests for VS Code REST Client)
 tests/
   UrlShortener.UnitTests/         Rules, services, contract suites (in-memory + SQLite)
   UrlShortener.IntegrationTests/  Full HTTP pipeline via WebApplicationFactory, OpenAPI contract snapshot
 tools/
   UrlShortener.LoadTest/        Redirect load generator (see docs/TESTING.md)
 docs/                           Requirements, architecture, scenarios, testing, risks, AI log, openapi.v1.json
-UrlShortener.http               Ready-made requests for VS Code REST Client
 .github/workflows/ci.yml        Build, test, vulnerable-package scan
 ```

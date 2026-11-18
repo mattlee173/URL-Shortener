@@ -87,14 +87,3 @@ public static class DependencyInjection
 
     private static StorageOptions Options(IServiceProvider sp) => sp.GetRequiredService<IOptions<StorageOptions>>().Value;
 }
-
-/// <summary>Prepares the backing store (e.g. creates schema) before the app starts serving.</summary>
-public interface IStorageInitializer
-{
-    Task InitializeAsync(CancellationToken cancellationToken);
-}
-
-internal sealed class NoOpStorageInitializer : IStorageInitializer
-{
-    public Task InitializeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-}

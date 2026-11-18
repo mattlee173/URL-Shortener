@@ -1,7 +1,7 @@
 using Microsoft.OpenApi;
 using UrlShortener.Api.Security;
 
-namespace UrlShortener.Api;
+namespace UrlShortener.Api.Configuration;
 
 /// <summary>
 /// Serves the OpenAPI 3.1 description at <c>/openapi/v1.json</c>. A committed snapshot

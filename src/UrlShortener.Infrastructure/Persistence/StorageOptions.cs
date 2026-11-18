@@ -1,4 +1,4 @@
-namespace UrlShortener.Infrastructure;
+namespace UrlShortener.Infrastructure.Persistence;
 
 public enum StorageProvider
 {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 
-namespace UrlShortener.Api;
+namespace UrlShortener.Api.Errors;
 
 /// <summary>
 /// Converts request-binding failures (malformed JSON, wrong content type, oversized body)

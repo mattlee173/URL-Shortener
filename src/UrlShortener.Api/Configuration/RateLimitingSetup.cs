@@ -3,7 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
-namespace UrlShortener.Api;
+namespace UrlShortener.Api.Configuration;
 
 /// <summary>Bound from the "RateLimiting" configuration section.</summary>
 public sealed class RateLimitingOptions

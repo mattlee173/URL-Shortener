@@ -2,7 +2,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using UrlShortener.Infrastructure.Observability;
 
-namespace UrlShortener.Api;
+namespace UrlShortener.Api.Configuration;
 
 /// <summary>
 /// Exports metrics over OTLP (to an OpenTelemetry Collector, Prometheus with OTLP ingestion, Azure

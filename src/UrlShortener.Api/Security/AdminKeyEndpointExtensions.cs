@@ -1,3 +1,5 @@
+using UrlShortener.Api.Configuration;
+
 namespace UrlShortener.Api.Security;
 
 /// <summary>Endpoint metadata marking an operation as admin-only (read by the OpenAPI document).</summary>

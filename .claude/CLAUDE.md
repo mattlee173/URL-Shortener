@@ -12,7 +12,7 @@ dotnet test                                   # 170 unit + 36 integration test c
 dotnet run --project src/UrlShortener.Api     # http://localhost:5260 (Development env)
 ```
 
-Manual API checks: `UrlShortener.http` (VS Code REST Client). Dev admin key:
+Manual API checks: `src/UrlShortener.Api/UrlShortener.Api.http` (VS Code REST Client). Dev admin key:
 `dev-only-admin-key-change-me` (header `X-Api-Key`). OpenAPI: `/openapi/v1.json`; the committed
 snapshot `docs/openapi.v1.json` is checked by a test (`UPDATE_OPENAPI_SNAPSHOT=1` to accept changes).
 Load test: `tools/UrlShortener.LoadTest` against a live Release instance (see docs/TESTING.md).
@@ -25,8 +25,9 @@ Load test: `tools/UrlShortener.LoadTest` against a live Release instance (see do
   in-memory stores, `CachedShortLinkRepository`, analytics pipeline (bounded channel →
   `ClickFlushService`), `ClickRetentionService`, `ShortenerMetrics` (BCL Meter), versioned
   migrations (`SqliteSchemaInitializer`, `PRAGMA user_version`, currently 4).
-- `src/UrlShortener.Api`: endpoints (`Endpoints/LinkEndpoints.cs`), `ResultMapping` (domain error →
-  RFC 9457 problem details with `errorCode`), API-key filter (`RequireAdminKey()` = admin rate limit
+- `src/UrlShortener.Api`: endpoints (`Endpoints/`), request/response records (`Contracts/`),
+  `Errors/` (`ResultMapping`: domain error → RFC 9457 problem details with `errorCode`; bad-request
+  handler), startup wiring per concern in `Configuration/`, API-key filter in `Security/` (`RequireAdminKey()` = admin rate limit
   + filter + OpenAPI metadata), rate limiting, forwarded headers (opt-in), OpenAPI, OTLP telemetry
   (only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set), exception handler.
 - Tests: `tests/UrlShortener.UnitTests` (including repository **contract suites** run against

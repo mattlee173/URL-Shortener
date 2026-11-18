@@ -2,7 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 
-namespace UrlShortener.Api;
+namespace UrlShortener.Api.Configuration;
 
 /// <summary>Bound from the "ForwardedHeaders" configuration section.</summary>
 public sealed class ForwardedHeadersSettings

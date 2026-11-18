@@ -1,6 +1,6 @@
 using UrlShortener.Core.Domain;
 
-namespace UrlShortener.Api.Endpoints;
+namespace UrlShortener.Api.Errors;
 
 /// <summary>Translates domain errors into RFC 9457 problem details responses.</summary>
 internal static class ResultMapping
