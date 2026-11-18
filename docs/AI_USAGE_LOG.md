@@ -76,6 +76,7 @@ design and not used. **Defect found → fixed**: a bug in generated code caught 
 | Item | Status | Rationale |
 |---|---|---|
 | `Microsoft.Data.Sqlite` 10.0.0 | **Defect found → fixed** (bumped to 10.0.15) | Engineer's first real `dotnet restore` failed with NU1903: the package pulls in `SQLitePCLRaw.lib.e_sqlite3` 2.1.11, which bundles a SQLite version affected by CVE-2025-6965 / GHSA-2m69-gcr7-jv3q (high). 10.0.15 resolves 2.1.13, outside the affected range. The AI sandbox couldn't reach NuGet's vulnerability feed, so this gate only fired on real infrastructure. It shows why the engineer's run is the authoritative one. Fixed by upgrading rather than suppressing the warning. |
+| Click drain on shutdown (`ClickFlushService`) | **Defect found → fixed** | First run against real xUnit on Windows: `StopAsync_DrainsBufferedEvents_BeforeExiting` saved 0 of 25 events. Root cause: since .NET 10, `BackgroundService` starts `ExecuteAsync` via `Task.Run` with the stopping token, so a stop that arrives before the task is scheduled cancels it before it runs, and the drain loop never executes. Reproduced in 44 of 300 stress iterations. Fix: `StopAsync` drains anything still buffered once the consumer is no longer running (single-reader invariant kept). Two regression tests added: a deterministic "never started" case and a 100-iteration start/stop race. 0 of 300 failures after the fix. The original test was correct; it caught a real data-loss bug that only shows up under some scheduling timings. |
 
 ---
 
@@ -84,7 +85,7 @@ design and not used. **Defect found → fixed**: a bug in generated code caught 
 1. **Compile with warnings as errors**: nullable analysis, .NET analyzers at `latest-recommended`,
    code style. Several AI suggestions were rejected at this gate (CA1716, CA1000, CA1861, CS8602,
    CS8629).
-2. **Automated tests**: 141 unit and 24 integration test cases at the time of writing.
+2. **Automated tests**: 143 unit and 24 integration test cases at the time of writing.
 3. **Manual exploratory verification** of behaviour tests can't easily show: real Kestrel limits
    (413), `Retry-After` on 429, legacy-database upgrade, SIGINT drain of buffered clicks, IDN
    redirect.

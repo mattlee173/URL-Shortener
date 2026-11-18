@@ -32,7 +32,22 @@ public sealed partial class ClickFlushService : BackgroundService
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _recorder.Complete();
-        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Since .NET 10, BackgroundService starts ExecuteAsync via Task.Run with the stopping token.
+            // If the host stops before that task is scheduled, ExecuteAsync never runs and cannot drain.
+            // Persist whatever is still buffered here, but only once the consumer is not running, so the
+            // channel keeps a single reader. If the shutdown timeout fired while ExecuteAsync is still
+            // draining, leave it to finish.
+            if (ExecuteTask is null || ExecuteTask.IsCompleted)
+            {
+                await DrainRemainingAsync().ConfigureAwait(false);
+            }
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -59,6 +74,22 @@ public sealed partial class ClickFlushService : BackgroundService
             await FlushAsync(batch).ConfigureAwait(false);
             batch.Clear();
         }
+    }
+
+    private async Task DrainRemainingAsync()
+    {
+        var batch = new List<ClickEvent>(_options.BatchSize);
+        while (_recorder.Reader.TryRead(out var click))
+        {
+            batch.Add(click);
+            if (batch.Count == _options.BatchSize)
+            {
+                await FlushAsync(batch).ConfigureAwait(false);
+                batch.Clear();
+            }
+        }
+
+        await FlushAsync(batch).ConfigureAwait(false);
     }
 
     private async Task FlushAsync(List<ClickEvent> batch)

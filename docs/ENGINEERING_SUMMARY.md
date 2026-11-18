@@ -26,7 +26,7 @@
 | Runnable service | `src/UrlShortener.Api` (`dotnet run`) |
 | API definition | README "API" table, endpoint summaries in code, `UrlShortener.http` |
 | Schema | `SqliteSchemaInitializer.Migrations` (versioned, forward-only) |
-| Unit tests | `tests/UrlShortener.UnitTests` (141 cases) |
+| Unit tests | `tests/UrlShortener.UnitTests` (143 cases) |
 | Integration tests | `tests/UrlShortener.IntegrationTests` (24 cases) |
 | CI pipeline | `.github/workflows/ci.yml` |
 | Docs | `docs/` |
@@ -43,6 +43,9 @@
 - **Four defects** were caught by verification during development and fixed with regression tests:
   malformed JSON returning 500, create/read timestamp mismatch, OS-dependent URL parsing, and
   Unicode hosts causing 500 on redirect.
+- **Two more were caught on the engineer's first real run** (see AI_USAGE_LOG.md): a vulnerable
+  transitive SQLite package (CVE-2025-6965, fixed by upgrading `Microsoft.Data.Sqlite`), and a
+  .NET 10 start/stop race that could drop buffered clicks on a fast shutdown.
 
 ## Key risks and trade-offs
 

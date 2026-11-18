@@ -30,6 +30,49 @@ public class ClickFlushServiceTests
     }
 
     [Fact]
+    public async Task StopAsync_WhenConsumerLoopNeverRan_StillPersistsBufferedEvents()
+    {
+        // Regression: since .NET 10, BackgroundService runs ExecuteAsync via Task.Run with the stopping
+        // token. A stop that arrives before the task is scheduled cancels it before it ever runs, and
+        // buffered clicks were silently lost (~1 in 7 runs of the test above on a fast stop). Stopping a
+        // service that was never started reproduces "ExecuteAsync never ran" deterministically.
+        var recorder = new ChannelClickRecorder(_options);
+        var repository = new RecordingClickRepository();
+        using var service = new ClickFlushService(recorder, repository, _options, NullLogger<ClickFlushService>.Instance);
+        for (var i = 0; i < 25; i++)
+        {
+            recorder.TryRecord(ChannelClickRecorderTests.Click());
+        }
+
+        await service.StopAsync(default);
+
+        Assert.Equal(25, repository.Saved.Count);
+        Assert.All(repository.BatchSizes, size => Assert.InRange(size, 1, _options.BatchSize));
+    }
+
+    [Fact]
+    public async Task StartThenImmediateStop_NeverLosesEvents_AcrossManyRuns()
+    {
+        // Exercises the real start/stop race repeatedly; before the fix this failed ~15% of iterations.
+        for (var run = 0; run < 100; run++)
+        {
+            var recorder = new ChannelClickRecorder(_options);
+            var repository = new RecordingClickRepository();
+            using var service = new ClickFlushService(recorder, repository, _options, NullLogger<ClickFlushService>.Instance);
+
+            await service.StartAsync(default);
+            for (var i = 0; i < 25; i++)
+            {
+                recorder.TryRecord(ChannelClickRecorderTests.Click());
+            }
+
+            await service.StopAsync(default);
+
+            Assert.Equal(25, repository.Saved.Count);
+        }
+    }
+
+    [Fact]
     public async Task FailedBatch_IsLogged_AndConsumerKeepsRunning()
     {
         var options = new AnalyticsOptions { BatchSize = 1, FlushIntervalMilliseconds = 0 };
