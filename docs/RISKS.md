@@ -9,7 +9,7 @@
 | Database unavailable | Create/redirect return 500 problem details; cached links keep redirecting until TTL | Exception handler; health endpoint for orchestration |
 | Retention purge failing | Logged; retried on the next sweep; redirects and click recording unaffected | try/catch in the sweep loop |
 | Analytics DB writes failing | Redirects unaffected; batch dropped and logged | Bounded channel + try/catch in consumer |
-| Traffic spike beyond analytics throughput | Redirects unaffected; excess click events dropped and counted | `BufferCapacity`, `DroppedCount` |
+| Traffic spike beyond analytics throughput | Redirects unaffected; excess click events dropped and counted | `BufferCapacity`, `urlshortener.clicks.dropped` metric |
 | Graceful shutdown with clicks buffered | Buffer drained before exit | `StopAsync` completes channel; drain test |
 | Crash / kill -9 with clicks buffered | Up to `BufferCapacity` clicks lost (link data is unaffected) | Accepted trade-off (see §3) |
 | Missing secrets in production | Process refuses to start | `ValidateOnStart` on options |

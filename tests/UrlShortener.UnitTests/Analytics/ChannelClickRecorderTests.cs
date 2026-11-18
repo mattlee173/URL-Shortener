@@ -7,14 +7,14 @@ namespace UrlShortener.UnitTests.Analytics;
 public class ChannelClickRecorderTests
 {
     [Fact]
-    public void TryRecord_WhenBufferFull_DropsAndCountsInsteadOfBlocking()
+    public void TryRecord_WhenBufferFull_DropsInsteadOfBlocking()
     {
         var recorder = new ChannelClickRecorder(new AnalyticsOptions { BufferCapacity = 2 });
 
         var results = Enumerable.Range(0, 5).Select(_ => recorder.TryRecord(Click())).ToList();
 
+        // Counting the drops is covered by Metrics_ReportDropsAndBufferDepth.
         Assert.Equal(new[] { true, true, false, false, false }, results);
-        Assert.Equal(3, recorder.DroppedCount);
     }
 
     [Fact]

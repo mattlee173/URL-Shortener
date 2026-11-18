@@ -8,14 +8,13 @@ namespace UrlShortener.Infrastructure.Analytics;
 /// <summary>
 /// Bounded in-memory buffer between the redirect path (producer) and
 /// <see cref="ClickFlushService"/> (consumer). When full, new events are dropped rather than
-/// blocking redirects or growing memory without limit; drops are counted so they can be
-/// monitored.
+/// blocking redirects or growing memory without limit; drops are counted by the
+/// <c>urlshortener.clicks.dropped</c> metric so they can be monitored and alerted on.
 /// </summary>
 public sealed class ChannelClickRecorder : IClickRecorder
 {
     private readonly Channel<ClickEvent> _channel;
     private readonly ShortenerMetrics? _metrics;
-    private long _dropped;
 
     public ChannelClickRecorder(AnalyticsOptions options, ShortenerMetrics? metrics = null)
     {
@@ -32,8 +31,6 @@ public sealed class ChannelClickRecorder : IClickRecorder
 
     public ChannelReader<ClickEvent> Reader => _channel.Reader;
 
-    public long DroppedCount => Interlocked.Read(ref _dropped);
-
     public bool TryRecord(ClickEvent click)
     {
         if (_channel.Writer.TryWrite(click))
@@ -41,7 +38,6 @@ public sealed class ChannelClickRecorder : IClickRecorder
             return true;
         }
 
-        Interlocked.Increment(ref _dropped);
         _metrics?.ClickDropped();
         return false;
     }
