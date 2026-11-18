@@ -1,5 +1,6 @@
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Analytics;
+using UrlShortener.UnitTests.TestDoubles;
 
 namespace UrlShortener.UnitTests.Analytics;
 
@@ -14,6 +15,21 @@ public class ChannelClickRecorderTests
 
         Assert.Equal(new[] { true, true, false, false, false }, results);
         Assert.Equal(3, recorder.DroppedCount);
+    }
+
+    [Fact]
+    public void Metrics_ReportDropsAndBufferDepth()
+    {
+        using var capture = new MetricsCapture();
+        var recorder = new ChannelClickRecorder(new AnalyticsOptions { BufferCapacity = 2 }, capture.Metrics);
+
+        for (var i = 0; i < 5; i++)
+        {
+            recorder.TryRecord(Click());
+        }
+
+        Assert.Equal(3, capture.Sum("urlshortener.clicks.dropped"));
+        Assert.Equal(2, capture.Observe("urlshortener.clicks.buffered"));
     }
 
     [Fact]

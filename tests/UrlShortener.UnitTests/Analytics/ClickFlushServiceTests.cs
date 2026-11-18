@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Analytics;
+using UrlShortener.UnitTests.TestDoubles;
 
 namespace UrlShortener.UnitTests.Analytics;
 
@@ -88,6 +89,26 @@ public class ClickFlushServiceTests
 
         var saved = Assert.Single(repository.Saved);
         Assert.Equal("kept123", saved.Code);
+    }
+
+    [Fact]
+    public async Task Metrics_CountPersistedAndFailedClicks()
+    {
+        using var capture = new MetricsCapture();
+        var options = new AnalyticsOptions { BatchSize = 1, FlushIntervalMilliseconds = 0 };
+        var recorder = new ChannelClickRecorder(options);
+        var repository = new RecordingClickRepository { FailNextBatch = true };
+        using var service = new ClickFlushService(recorder, repository, options, NullLogger<ClickFlushService>.Instance, capture.Metrics);
+
+        await service.StartAsync(default);
+        recorder.TryRecord(ChannelClickRecorderTests.Click("lost123"));
+        await WaitUntil(() => !repository.FailNextBatch);
+        recorder.TryRecord(ChannelClickRecorderTests.Click("kept123"));
+        recorder.TryRecord(ChannelClickRecorderTests.Click("kept456"));
+        await service.StopAsync(default);
+
+        Assert.Equal(1, capture.Sum("urlshortener.clicks.failed"));
+        Assert.Equal(2, capture.Sum("urlshortener.clicks.persisted"));
     }
 
     private static async Task WaitUntil(Func<bool> condition)

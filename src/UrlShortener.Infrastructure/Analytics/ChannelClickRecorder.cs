@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
+using UrlShortener.Infrastructure.Observability;
 
 namespace UrlShortener.Infrastructure.Analytics;
 
@@ -13,9 +14,10 @@ namespace UrlShortener.Infrastructure.Analytics;
 public sealed class ChannelClickRecorder : IClickRecorder
 {
     private readonly Channel<ClickEvent> _channel;
+    private readonly ShortenerMetrics? _metrics;
     private long _dropped;
 
-    public ChannelClickRecorder(AnalyticsOptions options)
+    public ChannelClickRecorder(AnalyticsOptions options, ShortenerMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         _channel = Channel.CreateBounded<ClickEvent>(new BoundedChannelOptions(options.BufferCapacity)
@@ -24,6 +26,8 @@ public sealed class ChannelClickRecorder : IClickRecorder
             SingleReader = true,
             SingleWriter = false,
         });
+        _metrics = metrics;
+        _metrics?.ObserveBufferDepth(() => _channel.Reader.Count);
     }
 
     public ChannelReader<ClickEvent> Reader => _channel.Reader;
@@ -38,6 +42,7 @@ public sealed class ChannelClickRecorder : IClickRecorder
         }
 
         Interlocked.Increment(ref _dropped);
+        _metrics?.ClickDropped();
         return false;
     }
 

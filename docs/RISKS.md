@@ -71,8 +71,9 @@
 3. ~~**No OpenAPI document.**~~ **Done (2026-11-17).** `/openapi/v1.json` is served, and the snapshot
    `docs/openapi.v1.json` is checked by a contract test.
 4. **No data retention job** for `click_events`. Add a scheduled purge (e.g. older than 13 months).
-5. **No metrics export** (OpenTelemetry). `DroppedCount`, cache hit ratio, and redirect latency are
-   the first three metrics to add.
+5. ~~**No metrics export.**~~ **Done (2026-11-17).** The `UrlShortener` meter, plus the ASP.NET Core
+   and runtime meters, is exported over OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Dashboards
+   and alert rules (e.g. on `urlshortener.clicks.dropped` > 0) still need defining for a real deployment.
 6. ~~**Admin brute-force throttling.**~~ **Done (2026-11-17).** See §2.
 7. **Unicode lookalike (homograph) domains** are stored as punycode, which makes them visible in the
    API, but they are not flagged.

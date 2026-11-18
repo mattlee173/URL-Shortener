@@ -45,6 +45,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddUrlShortenerRateLimiting(builder.Configuration);
 builder.Services.AddForwardedHeadersSupport(builder.Configuration);
 builder.Services.AddUrlShortenerOpenApi();
+builder.Services.AddUrlShortenerTelemetry(builder.Configuration);
 
 // Requests are tiny JSON documents; cap bodies well below Kestrel's 30 MB default to blunt
 // memory-exhaustion attempts.

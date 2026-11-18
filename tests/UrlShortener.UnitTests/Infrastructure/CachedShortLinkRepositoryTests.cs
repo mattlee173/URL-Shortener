@@ -3,6 +3,7 @@ using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Domain;
 using UrlShortener.Infrastructure.Caching;
 using UrlShortener.Infrastructure.Persistence;
+using UrlShortener.UnitTests.TestDoubles;
 
 namespace UrlShortener.UnitTests.Infrastructure;
 
@@ -28,6 +29,21 @@ public sealed class CachedShortLinkRepositoryTests : IDisposable
         await _sut.GetAsync("Cache01", default);
 
         Assert.Equal(1, _inner.GetCalls);
+    }
+
+    [Fact]
+    public async Task Metrics_CountHitsAndMisses()
+    {
+        using var capture = new MetricsCapture();
+        var sut = new CachedShortLinkRepository(_inner, _cache, TimeSpan.FromMinutes(5), capture.Metrics);
+        await sut.TryAddAsync(Link("Metric1"), default);
+
+        await sut.GetAsync("Metric1", default); // miss, then cached
+        await sut.GetAsync("Metric1", default); // hit
+        await sut.GetAsync("Metric1", default); // hit
+
+        Assert.Equal(1, capture.Sum("urlshortener.cache.lookups", "miss"));
+        Assert.Equal(2, capture.Sum("urlshortener.cache.lookups", "hit"));
     }
 
     [Fact]

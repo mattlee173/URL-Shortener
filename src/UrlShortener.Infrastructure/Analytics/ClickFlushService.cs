@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
+using UrlShortener.Infrastructure.Observability;
 
 namespace UrlShortener.Infrastructure.Analytics;
 
@@ -16,17 +17,20 @@ public sealed partial class ClickFlushService : BackgroundService
     private readonly IClickRepository _repository;
     private readonly AnalyticsOptions _options;
     private readonly ILogger<ClickFlushService> _logger;
+    private readonly ShortenerMetrics? _metrics;
 
     public ClickFlushService(
         ChannelClickRecorder recorder,
         IClickRepository repository,
         AnalyticsOptions options,
-        ILogger<ClickFlushService> logger)
+        ILogger<ClickFlushService> logger,
+        ShortenerMetrics? metrics = null)
     {
         _recorder = recorder;
         _repository = repository;
         _options = options;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -102,12 +106,14 @@ public sealed partial class ClickFlushService : BackgroundService
         try
         {
             await _repository.AddBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
+            _metrics?.ClicksPersisted(batch.Count);
         }
 #pragma warning disable CA1031 // A storage failure must not kill the consumer loop; it is logged and the batch dropped.
         catch (Exception ex)
 #pragma warning restore CA1031
         {
             LogFlushFailed(_logger, ex, batch.Count);
+            _metrics?.ClicksFailed(batch.Count);
         }
     }
 

@@ -6,6 +6,7 @@ using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 using UrlShortener.Infrastructure.Analytics;
 using UrlShortener.Infrastructure.Caching;
+using UrlShortener.Infrastructure.Observability;
 using UrlShortener.Infrastructure.Persistence;
 
 namespace UrlShortener.Infrastructure;
@@ -25,6 +26,9 @@ public static class DependencyInjection
                 "Storage:ConnectionString is required for the Sqlite provider.")
             .Validate(o => o.CacheSizeLimit > 0, "Storage:CacheSizeLimit must be positive.")
             .ValidateOnStart();
+
+        services.AddMetrics();
+        services.AddSingleton<ShortenerMetrics>();
 
         services.AddMemoryCache();
         services.AddOptions<MemoryCacheOptions>()
@@ -52,7 +56,10 @@ public static class DependencyInjection
 
             return options.CacheTtlSeconds > 0
                 ? new CachedShortLinkRepository(
-                    store, sp.GetRequiredService<IMemoryCache>(), TimeSpan.FromSeconds(options.CacheTtlSeconds))
+                    store,
+                    sp.GetRequiredService<IMemoryCache>(),
+                    TimeSpan.FromSeconds(options.CacheTtlSeconds),
+                    sp.GetRequiredService<ShortenerMetrics>())
                 : store;
         });
 
@@ -71,7 +78,8 @@ public static class DependencyInjection
             _ => sp.GetRequiredService<InMemoryClickRepository>(),
         });
 
-        services.AddSingleton(sp => new ChannelClickRecorder(sp.GetRequiredService<AnalyticsOptions>()));
+        services.AddSingleton(sp => new ChannelClickRecorder(
+            sp.GetRequiredService<AnalyticsOptions>(), sp.GetRequiredService<ShortenerMetrics>()));
         services.AddSingleton<IClickRecorder>(sp => sp.GetRequiredService<ChannelClickRecorder>());
         services.AddHostedService<ClickFlushService>();
     }

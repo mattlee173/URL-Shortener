@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Domain;
+using UrlShortener.Infrastructure.Observability;
 
 namespace UrlShortener.Infrastructure.Caching;
 
@@ -18,17 +19,19 @@ public sealed class CachedShortLinkRepository : IShortLinkRepository
     private readonly IShortLinkRepository _inner;
     private readonly IMemoryCache _cache;
     private readonly TimeSpan _ttl;
+    private readonly ShortenerMetrics? _metrics;
 
     // Bumped by every delete. A read that overlaps a delete must not publish the row it read,
     // because that row may predate the delete. Deletes are rare, so one global counter is enough:
     // the cost of a collision is a single uncached read.
     private long _invalidations;
 
-    public CachedShortLinkRepository(IShortLinkRepository inner, IMemoryCache cache, TimeSpan ttl)
+    public CachedShortLinkRepository(IShortLinkRepository inner, IMemoryCache cache, TimeSpan ttl, ShortenerMetrics? metrics = null)
     {
         _inner = inner;
         _cache = cache;
         _ttl = ttl;
+        _metrics = metrics;
     }
 
     public Task<bool> TryAddAsync(ShortLink link, CancellationToken cancellationToken) =>
@@ -39,8 +42,11 @@ public sealed class CachedShortLinkRepository : IShortLinkRepository
         var key = CacheKey(code);
         if (_cache.TryGetValue(key, out ShortLink? cached))
         {
+            _metrics?.CacheHit();
             return cached;
         }
+
+        _metrics?.CacheMiss();
 
         var before = Interlocked.Read(ref _invalidations);
         var link = await _inner.GetAsync(code, cancellationToken).ConfigureAwait(false);
