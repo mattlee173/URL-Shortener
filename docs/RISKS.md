@@ -26,7 +26,8 @@
 | Trusted domain pointing into intranets / cloud metadata | IP-literal + internal-TLD checks on canonicalised host | **DNS names that resolve to private IPs are not caught** (the service never resolves DNS, by design: avoids SSRF in the shortener itself and DNS-rebinding TOCTOU). |
 | Malware/phishing destinations | Operator block list | No reputation feed (Safe Browsing etc.); list is static. |
 | Redirect loops / chain obfuscation | Self-host rejected | Other shorteners are not blocked (could add their domains to `BlockedHosts`). |
-| Link enumeration | 62⁷ random keyspace + redirect rate limit | Custom aliases are guessable by nature. |
+| Link enumeration | 62⁷ random keyspace; redirect **and** metadata lookups share one per-IP rate limit | Custom aliases are guessable by nature. |
+| Taken-down link still advertising its target | Metadata for deleted links returns 410 without `targetUrl` | — |
 | Hijacking a deleted code | Codes never reissued | — |
 | Brute-forcing the admin key | Constant-time compare | **No rate limit/lockout on management endpoints** (add a policy before exposure). |
 | Host-header injection in short URLs | `BaseUrl` from config, not request | — |

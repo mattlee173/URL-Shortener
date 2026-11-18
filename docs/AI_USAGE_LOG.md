@@ -78,6 +78,15 @@ design and not used. **Defect found → fixed**: a bug in generated code caught 
 | `Microsoft.Data.Sqlite` 10.0.0 | **Defect found → fixed** (bumped to 10.0.15) | Engineer's first real `dotnet restore` failed with NU1903: the package pulls in `SQLitePCLRaw.lib.e_sqlite3` 2.1.11, which bundles a SQLite version affected by CVE-2025-6965 / GHSA-2m69-gcr7-jv3q (high). 10.0.15 resolves 2.1.13, outside the affected range. The AI sandbox couldn't reach NuGet's vulnerability feed, so this gate only fired on real infrastructure. It shows why the engineer's run is the authoritative one. Fixed by upgrading rather than suppressing the warning. |
 | Click drain on shutdown (`ClickFlushService`) | **Defect found → fixed** | First run against real xUnit on Windows: `StopAsync_DrainsBufferedEvents_BeforeExiting` saved 0 of 25 events. Root cause: since .NET 10, `BackgroundService` starts `ExecuteAsync` via `Task.Run` with the stopping token, so a stop that arrives before the task is scheduled cancels it before it runs, and the drain loop never executes. Reproduced in 44 of 300 stress iterations. Fix: `StopAsync` drains anything still buffered once the consumer is no longer running (single-reader invariant kept). Two regression tests added: a deterministic "never started" case and a 100-iteration start/stop race. 0 of 300 failures after the fix. The original test was correct; it caught a real data-loss bug that only shows up under some scheduling timings. |
 
+### Post-review hardening (Claude Code session, 2026-11-17)
+
+A fresh AI session reviewed the delivered code against the docs before changing anything. The
+engineer approved the prioritised list of findings below; each item is one commit.
+
+| Item | Status | Rationale |
+|---|---|---|
+| Public metadata endpoint `GET /api/links/{code}` | **Defect found → fixed** | Review finding: it was unauthenticated **and** unthrottled, so it answered "does this code exist?" without the redirect's rate limit (enumeration bypass, contradicting RISKS §2), and it returned the target of **deleted** links (a phishing link taken down stayed discoverable). Fix: the endpoint shares the redirect's per-IP budget, and deleted links return 410 `link_deleted` without the target. Expired links still return metadata (expiry is not a takedown). Putting the endpoint behind the admin key was **considered → rejected**: a public "where does this go?" preview is a legitimate anti-phishing feature. Regression tests at unit and integration level. |
+
 ---
 
 ## 3. Quality gates applied to every AI output
@@ -125,3 +134,4 @@ approval before merging or deploying:
 | Rate-limit values (20 create / 300 redirect per IP per min) | Can lock out real users behind NAT | ☐ |
 | Analytics data model (what personal data is and isn't stored) | Privacy / compliance | ☐ |
 | Scenario 3 product assumptions (no default expiry, 410 semantics, 365-day max) | Product decisions made without a product owner | ☐ |
+| Metadata endpoint: deleted links → 410, shares redirect rate limit | Public API contract and security rule change | ☐ |

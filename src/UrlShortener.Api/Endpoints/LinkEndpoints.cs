@@ -19,7 +19,10 @@ internal static class LinkEndpoints
             .WithName("CreateLink")
             .WithSummary("Create a short link, optionally with a custom alias.");
 
+        // Shares the redirect's per-IP budget: both answer "does this code exist?", so an unthrottled
+        // metadata endpoint would let a scanner enumerate codes around the redirect limit.
         api.MapGet("/{code}", GetAsync)
+            .RequireRateLimiting(RateLimitingSetup.RedirectPolicy)
             .WithName("GetLink")
             .WithSummary("Get metadata for a short link.");
 

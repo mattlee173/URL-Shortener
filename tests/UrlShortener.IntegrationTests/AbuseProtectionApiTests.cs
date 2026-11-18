@@ -101,6 +101,29 @@ public sealed class AbuseProtectionApiTests : IClassFixture<ApiFactory>
         Assert.Equal("application/problem+json", last.Content.Headers.ContentType?.MediaType);
     }
 
+    [Fact]
+    public async Task Metadata_SharesTheRedirectRateLimit()
+    {
+        // Regression: GET /api/links/{code} had no rate limit, so a scanner could enumerate codes
+        // through it while the redirect endpoint's limit was in force.
+        using var limited = _factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:RedirectPermitsPerMinute", "3"));
+        using var client = limited.CreateClient(new() { AllowAutoRedirect = false });
+        var created = await client.PostAsJsonAsync("/api/links", new CreateLinkRequest("https://example.com", null));
+        var code = (await created.Content.ReadFromJsonAsync<LinkResponse>())!.Code;
+
+        var statuses = new List<HttpStatusCode>
+        {
+            (await client.GetAsync(new Uri($"/{code}", UriKind.Relative))).StatusCode,
+            (await client.GetAsync(new Uri($"/{code}", UriKind.Relative))).StatusCode,
+            (await client.GetAsync(new Uri($"/api/links/{code}", UriKind.Relative))).StatusCode,
+            (await client.GetAsync(new Uri($"/api/links/{code}", UriKind.Relative))).StatusCode,
+        };
+
+        Assert.Equal(
+            new[] { HttpStatusCode.Found, HttpStatusCode.Found, HttpStatusCode.OK, HttpStatusCode.TooManyRequests },
+            statuses);
+    }
+
     private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
     {
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

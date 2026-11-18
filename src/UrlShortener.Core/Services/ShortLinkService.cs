@@ -99,11 +99,20 @@ public sealed class ShortLinkService
         return link;
     }
 
-    /// <summary>Returns link metadata, including deleted links (management view).</summary>
+    /// <summary>
+    /// Returns public link metadata. Deleted links resolve to <see cref="ErrorKind.Gone"/> so a link
+    /// taken down by an operator (e.g. for phishing) no longer discloses its destination.
+    /// Expired links are still described: expiry is not a takedown, and <c>expiresAt</c> explains the 410.
+    /// </summary>
     public async Task<Result<ShortLink>> GetAsync(string code, CancellationToken ct)
     {
         var link = await _repository.GetAsync(code, ct).ConfigureAwait(false);
-        return link is null ? DomainError.NotFound($"No link exists for code '{code}'.") : link;
+        if (link is null)
+        {
+            return DomainError.NotFound($"No link exists for code '{code}'.");
+        }
+
+        return link.IsDeleted ? DomainError.Gone("link_deleted", "This link has been deleted.") : link;
     }
 
     public async Task<Result<bool>> DeleteAsync(string code, CancellationToken ct)

@@ -109,6 +109,24 @@ public sealed class LinkApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Metadata_OfDeletedLink_Returns410WithoutTarget()
+    {
+        // Regression: metadata for a deleted link was public and included targetUrl, so a link taken
+        // down for abuse kept advertising its destination.
+        var created = await CreateAsync(new CreateLinkRequest("https://phish.example/login", null));
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"/api/links/{created.Code}");
+        request.Headers.Add("X-Api-Key", ApiFactory.AdminKey);
+        await _client.SendAsync(request);
+
+        var metadata = await _client.GetAsync(new Uri($"/api/links/{created.Code}", UriKind.Relative));
+        var body = await metadata.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Gone, metadata.StatusCode);
+        Assert.Equal("link_deleted", await ErrorCodeAsync(metadata));
+        Assert.DoesNotContain("phish.example", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Health_ReturnsHealthy()
     {
         var response = await _client.GetStringAsync(new Uri("/health", UriKind.Relative));

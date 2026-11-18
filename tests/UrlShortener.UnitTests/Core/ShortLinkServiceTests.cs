@@ -151,6 +151,32 @@ public class ShortLinkServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_DeletedLink_ReturnsGone_AndWithholdsTarget()
+    {
+        // Regression: public metadata used to return deleted links in full, so a destination an
+        // operator took down (e.g. a phishing page) stayed discoverable through GET /api/links/{code}.
+        await _repository.TryAddAsync(Link("meta123"), default);
+        await _repository.MarkDeletedAsync("meta123", Now, default);
+
+        var result = await CreateService().GetAsync("meta123", default);
+
+        Assert.Equal(ErrorKind.Gone, result.Error!.Kind);
+        Assert.Equal("link_deleted", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetAsync_ExpiredLink_StillReturnsMetadata()
+    {
+        await _repository.TryAddAsync(Link("exp1234") with { ExpiresAt = Now.AddMinutes(1) }, default);
+        _time.Advance(TimeSpan.FromMinutes(2));
+
+        var result = await CreateService().GetAsync("exp1234", default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now.AddMinutes(1), result.Value.ExpiresAt);
+    }
+
+    [Fact]
     public async Task DeleteAsync_ActiveLink_SucceedsOnceThenReportsNotFound()
     {
         await _repository.TryAddAsync(Link("del1234"), default);
