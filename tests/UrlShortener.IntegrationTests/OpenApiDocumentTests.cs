@@ -60,9 +60,14 @@ public sealed class OpenApiDocumentTests : IClassFixture<ApiFactory>
         return JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
     }
 
-    private static string RepoRoot()
+    /// <remarks>
+    /// Regression: this used to walk up from the build output folder, so the test threw "Could not
+    /// locate the repository root" whenever output lived outside the repo (dotnet test --artifacts-path,
+    /// some CI layouts). The compiler-supplied path of this source file is always inside the repo.
+    /// </remarks>
+    private static string RepoRoot([System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "")
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        var dir = new DirectoryInfo(Path.GetDirectoryName(sourceFile)!);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "UrlShortener.sln")))
         {
             dir = dir.Parent;
