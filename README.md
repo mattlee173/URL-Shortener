@@ -45,12 +45,12 @@ is in [docs/AI_USAGE_LOG.md](docs/AI_USAGE_LOG.md).
 ```bash
 dotnet restore
 dotnet build            # warnings are errors
-dotnet test             # 170 unit + 36 integration
+dotnet test             # 171 unit + 36 integration
 dotnet run --project src/UrlShortener.Api
 ```
 
-The API listens on **http://localhost:5260** and creates `urlshortener.db` (SQLite) in the API
-project's folder on first run. Schema migrations apply automatically. The OpenAPI 3.1 description
+The API listens on **http://localhost:5260** and creates its SQLite database in
+`src/UrlShortener.Api/data/` on first run (git-ignored). Schema migrations apply automatically. The OpenAPI 3.1 description
 is at **http://localhost:5260/openapi/v1.json** (committed copy: [docs/openapi.v1.json](docs/openapi.v1.json)).
 
 ### Try it
@@ -103,7 +103,7 @@ Set in `appsettings*.json`, environment variables (`Section__Key`), or user-secr
 | `Shortener:MaxExpiryDays` | `365` | Upper bound for `expiresAt` |
 | `Shortener:BlockedHosts` | `[]` | Domains (and their subdomains) that may not be shortened |
 | `Storage:Provider` | `Sqlite` | `Sqlite` or `InMemory` |
-| `Storage:ConnectionString` | `Data Source=urlshortener.db` | |
+| `Storage:ConnectionString` | `Data Source=data/urlshortener.db` | Relative paths resolve from the API project folder; the folder is created if missing |
 | `Storage:CacheTtlSeconds` | `60` | `0` disables the redirect cache |
 | `Analytics:VisitorHashKey` | _(required)_ | **Secret.** Keys the visitor hash |
 | `Analytics:BufferCapacity` / `BatchSize` / `FlushIntervalMilliseconds` | `10000` / `500` / `1000` | Click pipeline tuning |

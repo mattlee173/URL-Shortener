@@ -64,6 +64,27 @@ public sealed class SqliteMigrationTests : IDisposable
     }
 
     [Fact]
+    public async Task DatabaseInMissingFolder_FolderIsCreated()
+    {
+        // The default connection string keeps the database under data/ so the SQLite files (.db, -wal,
+        // -shm) don't clutter the project folder. SQLite won't create a missing folder by itself.
+        var root = Path.Combine(Path.GetTempPath(), $"urlshortener-dir-{Guid.NewGuid():N}");
+        var dbPath = Path.Combine(root, "data", "app.db");
+        try
+        {
+            var connections = new SqliteConnectionFactory($"Data Source={dbPath};Pooling=False");
+
+            await new SqliteSchemaInitializer(connections).InitializeAsync(default);
+
+            Assert.True(File.Exists(dbPath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task DatabaseFromNewerBuild_RefusesToStart()
     {
         await ExecAsync($"PRAGMA user_version = {SqliteSchemaInitializer.LatestVersion + 1};");

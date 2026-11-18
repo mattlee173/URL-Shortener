@@ -8,7 +8,7 @@ Treat this as production-grade work: modular, testable, secure, with traceable d
 
 ```powershell
 dotnet build                                  # warnings are errors (Directory.Build.props)
-dotnet test                                   # 170 unit + 36 integration test cases, all must pass
+dotnet test                                   # 171 unit + 36 integration test cases, all must pass
 dotnet run --project src/UrlShortener.Api     # http://localhost:5260 (Development env)
 ```
 

@@ -63,6 +63,7 @@ public sealed class SqliteSchemaInitializer : IStorageInitializer
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        _connections.EnsureDatabaseDirectoryExists();
         await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         // WAL lets redirects (readers) proceed while a write is in progress. Persistent per file.

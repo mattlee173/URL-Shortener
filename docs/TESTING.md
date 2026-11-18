@@ -51,7 +51,7 @@ or one layer: `dotnet test tests/UrlShortener.UnitTests`.
 |---|---|
 | Compiler + nullable analysis + .NET analyzers (`latest-recommended`), **warnings as errors** | every build (`Directory.Build.props`) |
 | Code style enforced at build | `.editorconfig` + `EnforceCodeStyleInBuild` |
-| Unit + integration tests (170 + 36) | `dotnet test`, CI |
+| Unit + integration tests (171 + 36) | `dotnet test`, CI |
 | API contract drift | OpenAPI snapshot test |
 | Redirect latency budget (p99 < 10 ms) | `tools/UrlShortener.LoadTest` (manual / pre-release) |
 | Vulnerable dependency scan | CI: `dotnet list package --vulnerable --include-transitive` |

@@ -30,7 +30,7 @@
 | Runnable service | `src/UrlShortener.Api` (`dotnet run`) |
 | API definition | OpenAPI 3.1 at `/openapi/v1.json`, committed as `docs/openapi.v1.json` and guarded by a contract test; README "API" table; `src/UrlShortener.Api/UrlShortener.Api.http` |
 | Schema | `SqliteSchemaInitializer.Migrations` (versioned, forward-only; 4 migrations) |
-| Unit tests | `tests/UrlShortener.UnitTests` (170 cases) |
+| Unit tests | `tests/UrlShortener.UnitTests` (171 cases) |
 | Integration tests | `tests/UrlShortener.IntegrationTests` (36 cases) |
 | Load test | `tools/UrlShortener.LoadTest`; baseline in TESTING.md |
 | CI pipeline | `.github/workflows/ci.yml` |
