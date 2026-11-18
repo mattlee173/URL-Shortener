@@ -68,9 +68,8 @@
    it is enabled with no proxies listed. **Before deploying behind a load balancer, set these to the
    balancer's addresses.** Otherwise every client shares the balancer's rate-limit bucket.
 2. **No user accounts or link ownership**, so stats and delete are admin-only.
-3. **No OpenAPI document is generated** yet. `UrlShortener.http` and the endpoint summaries
-   (`WithSummary`) document the API. Adding `Microsoft.AspNetCore.OpenApi` + `MapOpenApi()` is a
-   two-line change.
+3. ~~**No OpenAPI document.**~~ **Done (2026-11-17).** `/openapi/v1.json` is served, and the snapshot
+   `docs/openapi.v1.json` is checked by a contract test.
 4. **No data retention job** for `click_events`. Add a scheduled purge (e.g. older than 13 months).
 5. **No metrics export** (OpenTelemetry). `DroppedCount`, cache hit ratio, and redirect latency are
    the first three metrics to add.

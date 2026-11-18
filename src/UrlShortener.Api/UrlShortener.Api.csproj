@@ -9,4 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="UrlShortener.IntegrationTests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+  </ItemGroup>
 </Project>

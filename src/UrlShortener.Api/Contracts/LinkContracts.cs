@@ -4,7 +4,7 @@ namespace UrlShortener.Api.Contracts;
 /// <param name="Url">Absolute http(s) destination URL.</param>
 /// <param name="CustomAlias">Optional vanity code (3-32 chars: letters, digits, '-', '_').</param>
 /// <param name="ExpiresAt">Optional ISO-8601 instant after which the link returns 410 Gone.</param>
-public sealed record CreateLinkRequest(string? Url, string? CustomAlias, DateTimeOffset? ExpiresAt = null);
+public sealed record CreateLinkRequest(string? Url, string? CustomAlias = null, DateTimeOffset? ExpiresAt = null);
 
 public sealed record LinkResponse(
     string Code,

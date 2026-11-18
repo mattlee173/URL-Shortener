@@ -14,35 +14,59 @@ internal static class LinkEndpoints
     {
         var api = app.MapGroup("/api/links").WithTags("Links");
 
+        // Produces*/ProducesProblem declare every status an endpoint can return, so the OpenAPI
+        // document describes the real contract (handlers return IResult, which carries no type info).
         api.MapPost("/", CreateAsync)
             .RequireRateLimiting(RateLimitingSetup.CreatePolicy)
             .WithName("CreateLink")
-            .WithSummary("Create a short link, optionally with a custom alias.");
+            .WithSummary("Create a short link, optionally with a custom alias.")
+            .Produces<LinkResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         // Shares the redirect's per-IP budget: both answer "does this code exist?", so an unthrottled
         // metadata endpoint would let a scanner enumerate codes around the redirect limit.
         api.MapGet("/{code}", GetAsync)
             .RequireRateLimiting(RateLimitingSetup.RedirectPolicy)
             .WithName("GetLink")
-            .WithSummary("Get metadata for a short link.");
+            .WithSummary("Get metadata for a short link. Deleted links return 410 and withhold the destination.")
+            .Produces<LinkResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status410Gone)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         api.MapDelete("/{code}", DeleteAsync)
-            .RequireRateLimiting(RateLimitingSetup.AdminPolicy)
+            .RequireAdminKey()
             .WithName("DeleteLink")
             .WithSummary("Soft-delete a short link (requires X-Api-Key). The code is never reissued.")
-            .AddEndpointFilter<ApiKeyEndpointFilter>();
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         api.MapGet("/{code}/stats", GetStatsAsync)
-            .RequireRateLimiting(RateLimitingSetup.AdminPolicy)
+            .RequireAdminKey()
             .WithName("GetLinkStats")
             .WithSummary("Click analytics for a link (requires X-Api-Key).")
-            .AddEndpointFilter<ApiKeyEndpointFilter>();
+            .Produces<LinkStats>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         app.MapGet("/{code}", RedirectAsync)
             .RequireRateLimiting(RateLimitingSetup.RedirectPolicy)
             .WithName("FollowLink")
             .WithTags("Redirect")
-            .WithSummary("Redirect to the link's destination.");
+            .WithSummary("Redirect to the link's destination (302, never cached by the browser).")
+            .Produces(StatusCodes.Status302Found)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status410Gone)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return app;
     }
