@@ -71,6 +71,12 @@ design and not used. **Defect found → fixed**: a bug in generated code caught 
 | Unicode host handling | **Defect found → fixed** | Exploratory test: IDN link created fine, then every redirect 500'd (Kestrel rejects non-ASCII headers). Store punycode; regression tests. |
 | Rate-limit policy reading options at registration | **Considered → rejected**, per-request `IOptionsMonitor` | Allows test overrides and config reload. |
 
+### Post-delivery: first build on the engineer's machine
+
+| Item | Status | Rationale |
+|---|---|---|
+| `Microsoft.Data.Sqlite` 10.0.0 | **Defect found → fixed** (bumped to 10.0.15) | Engineer's first real `dotnet restore` failed with NU1903: the package pulls in `SQLitePCLRaw.lib.e_sqlite3` 2.1.11, which bundles a SQLite version affected by CVE-2025-6965 / GHSA-2m69-gcr7-jv3q (high). 10.0.15 resolves 2.1.13, outside the affected range. The AI sandbox couldn't reach NuGet's vulnerability feed, so this gate only fired on real infrastructure. It shows why the engineer's run is the authoritative one. Fixed by upgrading rather than suppressing the warning. |
+
 ---
 
 ## 3. Quality gates applied to every AI output
