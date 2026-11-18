@@ -19,6 +19,11 @@ public sealed class CachedShortLinkRepository : IShortLinkRepository
     private readonly IMemoryCache _cache;
     private readonly TimeSpan _ttl;
 
+    // Bumped by every delete. A read that overlaps a delete must not publish the row it read,
+    // because that row may predate the delete. Deletes are rare, so one global counter is enough:
+    // the cost of a collision is a single uncached read.
+    private long _invalidations;
+
     public CachedShortLinkRepository(IShortLinkRepository inner, IMemoryCache cache, TimeSpan ttl)
     {
         _inner = inner;
@@ -37,10 +42,18 @@ public sealed class CachedShortLinkRepository : IShortLinkRepository
             return cached;
         }
 
+        var before = Interlocked.Read(ref _invalidations);
         var link = await _inner.GetAsync(code, cancellationToken).ConfigureAwait(false);
         if (link is not null)
         {
             _cache.Set(key, link, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = _ttl, Size = 1 });
+
+            // Checked after Set (not before) so a delete that lands between the check and the Set is
+            // still caught: the delete bumps the counter before it removes the entry.
+            if (Interlocked.Read(ref _invalidations) != before)
+            {
+                _cache.Remove(key);
+            }
         }
 
         return link;
@@ -49,6 +62,7 @@ public sealed class CachedShortLinkRepository : IShortLinkRepository
     public async Task<bool> MarkDeletedAsync(string code, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
         var deleted = await _inner.MarkDeletedAsync(code, deletedAt, cancellationToken).ConfigureAwait(false);
+        Interlocked.Increment(ref _invalidations);
         _cache.Remove(CacheKey(code));
         return deleted;
     }
