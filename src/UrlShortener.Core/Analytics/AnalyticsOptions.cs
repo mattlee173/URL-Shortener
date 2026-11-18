@@ -24,4 +24,16 @@ public sealed class AnalyticsOptions
     public int StatsWindowDays { get; set; } = 30;
 
     public int TopReferrers { get; set; } = 10;
+
+    /// <summary>
+    /// Click events older than this are deleted (data minimisation). 395 days keeps 13 months, enough
+    /// for a year-on-year comparison. 0 disables the purge. Totals in stats then mean "within retention".
+    /// </summary>
+    public int RetentionDays { get; set; } = 395;
+
+    /// <summary>How often the retention job runs.</summary>
+    public int RetentionSweepIntervalMinutes { get; set; } = 360;
+
+    /// <summary>Rows deleted per statement, so a large backlog is purged in short write transactions.</summary>
+    public int RetentionDeleteBatchSize { get; set; } = 5_000;
 }

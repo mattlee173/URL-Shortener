@@ -66,5 +66,8 @@ public class LinkAnalyticsServiceTests
             LastTop = topReferrers;
             return Task.FromResult(new LinkStats(code, 0, 0, null, [], [], []));
         }
+
+        public Task<int> DeleteOlderThanAsync(DateTimeOffset cutoff, int maxCount, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

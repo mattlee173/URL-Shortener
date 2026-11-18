@@ -44,6 +44,12 @@ public sealed class SqliteSchemaInitializer : IStorageInitializer
         """
         ALTER TABLE short_links ADD COLUMN expires_at_ms INTEGER NULL;
         """,
+
+        // 4: click retention (2026-11-17). The purge filters on time alone, which the (code, time) index
+        // cannot serve; without this, every sweep would scan the whole table.
+        """
+        CREATE INDEX IF NOT EXISTS ix_click_events_time ON click_events (occurred_at_ms);
+        """,
     ];
 
     private readonly SqliteConnectionFactory _connections;

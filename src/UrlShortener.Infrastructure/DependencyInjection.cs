@@ -82,6 +82,7 @@ public static class DependencyInjection
             sp.GetRequiredService<AnalyticsOptions>(), sp.GetRequiredService<ShortenerMetrics>()));
         services.AddSingleton<IClickRecorder>(sp => sp.GetRequiredService<ChannelClickRecorder>());
         services.AddHostedService<ClickFlushService>();
+        services.AddHostedService<ClickRetentionService>();
     }
 
     private static StorageOptions Options(IServiceProvider sp) => sp.GetRequiredService<IOptions<StorageOptions>>().Value;

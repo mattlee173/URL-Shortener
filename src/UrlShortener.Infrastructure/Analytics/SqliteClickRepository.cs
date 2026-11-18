@@ -108,4 +108,21 @@ public sealed class SqliteClickRepository : IClickRepository
 
         return new LinkStats(code, total, unique, last, byDay, referrers, kinds);
     }
+
+    public async Task<int> DeleteOlderThanAsync(DateTimeOffset cutoff, int maxCount, CancellationToken cancellationToken)
+    {
+        await using var connection = await _connections.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+
+        // The LIMIT sub-select keeps each write transaction short (SQLite has one writer, and the click
+        // flusher must not wait behind a large purge). Served by ix_click_events_time (migration 4).
+        command.CommandText = """
+            DELETE FROM click_events
+            WHERE id IN (SELECT id FROM click_events WHERE occurred_at_ms < $cutoff LIMIT $max);
+            """;
+        command.Parameters.AddWithValue("$cutoff", cutoff.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$max", maxCount);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }

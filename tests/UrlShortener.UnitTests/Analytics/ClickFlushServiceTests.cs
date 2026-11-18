@@ -150,5 +150,8 @@ public class ClickFlushServiceTests
 
         public Task<LinkStats> GetStatsAsync(string code, DateTimeOffset since, int topReferrers, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<int> DeleteOlderThanAsync(DateTimeOffset cutoff, int maxCount, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

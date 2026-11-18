@@ -51,6 +51,19 @@ public sealed class SqliteMigrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Version3Database_IsUpgradedWithRetentionIndex_AndPurgeUsesIt()
+    {
+        // A database from the previous release: migrations 1-3 applied, no time index yet.
+        await ExecAsync(string.Join('\n', SqliteSchemaInitializer.Migrations[..3]) + "\nPRAGMA user_version = 3;");
+
+        await new SqliteSchemaInitializer(_connections).InitializeAsync(default);
+        var plan = await QueryPlanAsync("SELECT id FROM click_events WHERE occurred_at_ms < 0;");
+
+        Assert.Equal(4, await VersionAsync());
+        Assert.Contains("ix_click_events_time", plan, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DatabaseFromNewerBuild_RefusesToStart()
     {
         await ExecAsync($"PRAGMA user_version = {SqliteSchemaInitializer.LatestVersion + 1};");
@@ -71,6 +84,21 @@ public sealed class SqliteMigrationTests : IDisposable
     {
         await using var connection = await _connections.OpenAsync(default);
         return await SqliteSchemaInitializer.GetVersionAsync(connection, default);
+    }
+
+    private async Task<string> QueryPlanAsync(string sql)
+    {
+        await using var connection = await _connections.OpenAsync(default);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "EXPLAIN QUERY PLAN " + sql;
+        await using var reader = await command.ExecuteReaderAsync();
+        var details = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            details.Add(reader.GetString(reader.FieldCount - 1)); // "detail" column
+        }
+
+        return string.Join(" | ", details);
     }
 
     private async Task ExecAsync(string sql)

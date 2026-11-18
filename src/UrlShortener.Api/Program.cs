@@ -25,6 +25,10 @@ builder.Services.AddOptions<AnalyticsOptions>()
     .Validate(o => !string.IsNullOrWhiteSpace(o.VisitorHashKey), "Analytics:VisitorHashKey must be configured (use user-secrets or an environment variable).")
     .Validate(o => o.BufferCapacity > 0 && o.BatchSize > 0 && o.FlushIntervalMilliseconds >= 0, "Analytics buffer settings must be positive.")
     .Validate(o => o.StatsWindowDays is >= 1 and <= 366 && o.TopReferrers is >= 1 and <= 100, "Analytics stats settings out of range.")
+    .Validate(o => o.RetentionDays == 0 || o.RetentionDays >= o.StatsWindowDays,
+        "Analytics:RetentionDays must be 0 (keep forever) or at least StatsWindowDays.")
+    .Validate(o => o.RetentionSweepIntervalMinutes >= 1 && o.RetentionDeleteBatchSize >= 1,
+        "Analytics retention settings must be positive.")
     .ValidateOnStart();
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<AnalyticsOptions>>().Value);
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));

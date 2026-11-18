@@ -69,6 +69,27 @@ public abstract class ClickRepositoryContractTests
     }
 
     [Fact]
+    public async Task DeleteOlderThan_RemovesOnlyOlderEvents_UpToMaxCount()
+    {
+        await Repository.AddBatchAsync(
+        [
+            new("purge01", Day1.AddDays(-3), null, ClientKind.Desktop, "v"),
+            new("purge01", Day1.AddDays(-2), null, ClientKind.Desktop, "v"),
+            new("purge01", Day1.AddDays(-1), null, ClientKind.Desktop, "v"),
+            new("purge01", Day1, null, ClientKind.Desktop, "v"), // exactly at the cutoff: kept
+        ], default);
+
+        var firstBatch = await Repository.DeleteOlderThanAsync(Day1, 2, default);
+        var secondBatch = await Repository.DeleteOlderThanAsync(Day1, 2, default);
+        var nothingLeft = await Repository.DeleteOlderThanAsync(Day1, 2, default);
+
+        Assert.Equal((2, 1, 0), (firstBatch, secondBatch, nothingLeft));
+        var stats = await Repository.GetStatsAsync("purge01", DateTimeOffset.MinValue, 10, default);
+        Assert.Equal(1, stats.TotalClicks);
+        Assert.Equal(Day1, stats.LastClickAt);
+    }
+
+    [Fact]
     public async Task GetStats_LimitsTopReferrers()
     {
         await Repository.AddBatchAsync(

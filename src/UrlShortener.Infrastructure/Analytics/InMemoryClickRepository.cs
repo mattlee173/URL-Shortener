@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using UrlShortener.Core.Abstractions;
 using UrlShortener.Core.Analytics;
 
@@ -6,14 +5,15 @@ namespace UrlShortener.Infrastructure.Analytics;
 
 public sealed class InMemoryClickRepository : IClickRepository
 {
-    private readonly ConcurrentQueue<ClickEvent> _clicks = new();
+    private readonly Lock _gate = new();
+    private readonly List<ClickEvent> _clicks = [];
 
     public Task AddBatchAsync(IReadOnlyCollection<ClickEvent> clicks, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(clicks);
-        foreach (var click in clicks)
+        lock (_gate)
         {
-            _clicks.Enqueue(click);
+            _clicks.AddRange(clicks);
         }
 
         return Task.CompletedTask;
@@ -21,7 +21,11 @@ public sealed class InMemoryClickRepository : IClickRepository
 
     public Task<LinkStats> GetStatsAsync(string code, DateTimeOffset since, int topReferrers, CancellationToken cancellationToken)
     {
-        var clicks = _clicks.Where(c => c.Code == code).ToList();
+        List<ClickEvent> clicks;
+        lock (_gate)
+        {
+            clicks = _clicks.Where(c => c.Code == code).ToList();
+        }
 
         var stats = new LinkStats(
             code,
@@ -45,5 +49,24 @@ public sealed class InMemoryClickRepository : IClickRepository
                 .ToList());
 
         return Task.FromResult(stats);
+    }
+
+    public Task<int> DeleteOlderThanAsync(DateTimeOffset cutoff, int maxCount, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            var deleted = 0;
+            _clicks.RemoveAll(c =>
+            {
+                if (deleted >= maxCount || c.OccurredAt >= cutoff)
+                {
+                    return false;
+                }
+
+                deleted++;
+                return true;
+            });
+            return Task.FromResult(deleted);
+        }
     }
 }

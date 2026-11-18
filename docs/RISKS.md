@@ -7,6 +7,7 @@
 | Two requests claim the same alias or code at the same instant | Exactly one wins; the other gets 409 (alias) or retries (generated) | DB primary key + `ON CONFLICT DO NOTHING`; concurrency test |
 | Code space congested / RNG collision streak | 503 `code_generation_failed` after N attempts, never an infinite loop | `MaxGenerationAttempts` |
 | Database unavailable | Create/redirect return 500 problem details; cached links keep redirecting until TTL | Exception handler; health endpoint for orchestration |
+| Retention purge failing | Logged; retried on the next sweep; redirects and click recording unaffected | try/catch in the sweep loop |
 | Analytics DB writes failing | Redirects unaffected; batch dropped and logged | Bounded channel + try/catch in consumer |
 | Traffic spike beyond analytics throughput | Redirects unaffected; excess click events dropped and counted | `BufferCapacity`, `DroppedCount` |
 | Graceful shutdown with clicks buffered | Buffer drained before exit | `StopAsync` completes channel; drain test |
@@ -32,7 +33,7 @@
 | Hijacking a deleted code | Codes never reissued | — |
 | Brute-forcing the admin key | Per-IP `admin` rate limit (30/min) applied before the key check; SHA-256 digests compared in constant time (no length leak) | Distributed guessing from many IPs; mitigate with a high-entropy key (≥ 32 random bytes) and key rotation. |
 | Host-header injection in short URLs | `BaseUrl` from config, not request | — |
-| Personal data in analytics | HMAC visitor hash, referrer host only, device class only | Hash key rotation and retention policy not automated. |
+| Personal data in analytics | HMAC visitor hash, referrer host only, device class only; automatic purge after `RetentionDays` | Hash key rotation is not automated. |
 | Secrets in source control | Only dev placeholders in `appsettings.Development.json` | Must use user-secrets/env/Key Vault in real environments. |
 | Vulnerable dependencies | CI runs `dotnet list package --vulnerable` | — |
 
@@ -70,7 +71,9 @@
 2. **No user accounts or link ownership**, so stats and delete are admin-only.
 3. ~~**No OpenAPI document.**~~ **Done (2026-11-17).** `/openapi/v1.json` is served, and the snapshot
    `docs/openapi.v1.json` is checked by a contract test.
-4. **No data retention job** for `click_events`. Add a scheduled purge (e.g. older than 13 months).
+4. ~~**No data retention job.**~~ **Done (2026-11-17).** `ClickRetentionService` purges clicks older
+   than `Analytics:RetentionDays` (395 by default) in bounded batches. Visitor-hash key rotation is
+   still manual.
 5. ~~**No metrics export.**~~ **Done (2026-11-17).** The `UrlShortener` meter, plus the ASP.NET Core
    and runtime meters, is exported over OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Dashboards
    and alert rules (e.g. on `urlshortener.clicks.dropped` > 0) still need defining for a real deployment.
