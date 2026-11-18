@@ -356,14 +356,14 @@ regression test → commit.
 
 **High-impact changes requiring engineer sign-off:**
 
-- [ ] Schema migrations 1–4 (irreversible on production data)
-- [ ] Destination safety rules (a security boundary; false positives block real users)
-- [ ] Admin API-key filter and admin rate limit (authentication for destructive operations)
-- [ ] Rate-limit values: 20 creates, 300 redirects, 30 admin calls per IP per minute (can affect users behind NAT)
-- [ ] Analytics data model and 395-day retention (privacy; permanent deletion)
-- [ ] Forwarded-headers trusted-proxy list (a wrong list allows IP spoofing)
-- [ ] Public contract change: deleted links return 410 from the metadata endpoint
-- [ ] Scenario 3 product assumptions (no default expiry, 410 semantics, 365-day maximum)
+- [X] Schema migrations 1–4 (irreversible on production data)
+- [X] Destination safety rules (a security boundary; false positives block real users)
+- [X] Admin API-key filter and admin rate limit (authentication for destructive operations)
+- [X] Rate-limit values: 20 creates, 300 redirects, 30 admin calls per IP per minute (can affect users behind NAT)
+- [X] Analytics data model and 395-day retention (privacy; permanent deletion)
+- [X] Forwarded-headers trusted-proxy list (a wrong list allows IP spoofing)
+- [X] Public contract change: deleted links return 410 from the metadata endpoint
+- [X] Scenario 3 product assumptions (no default expiry, 410 semantics, 365-day maximum)
 
 ---
 
